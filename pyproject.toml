@@ -1,0 +1,27 @@
+[project]
+name = "redfish-certrobot"
+version = "0.0.1"
+description = "Manage certificates on BMCs via Redfish / ACME DNS-01"
+authors = [
+    {name = "Fabian Wiesel", email = "fabian.wiesel@sap.com"},
+]
+dependencies = [
+    "sushy @ git+https://github.com/sapcc/sushy.git@handle_session_uri",
+    "openstacksdk>=0.103.0",
+    "tenacity>=8.1.0",
+    "setuptools>=65.6.3", # See: https://github.com/Infinidat/munch/issues/67
+    "cryptography>=38.0.4",
+]
+requires-python = ">=3.11"
+license = {text = "Apache-2.0"}
+
+[project.scripts]
+redfish-certrobot = "redfish_certrobot.my_module:main_cli"
+
+[tool]
+
+[tool.pdm]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
