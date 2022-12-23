@@ -1,0 +1,6 @@
+.*
+*.orig
+*.pyc
+build/
+dist/
+renovate.json
