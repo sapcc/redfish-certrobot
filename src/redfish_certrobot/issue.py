@@ -43,6 +43,7 @@ CSR_STATE = os.getenv("CSR_STATE")
 CSR_CITY = os.getenv("CSR_CITY")
 CSR_ORGANIZATION = os.getenv("CSR_ORGANIZATION")
 CSR_ORGANIZATIONAL_UNIT = os.getenv("CSR_ORGANIZATIONAL_UNIT")
+CSR_EMAIL = os.getenv("CSR_EMAIL")
 
 LOG = logging.getLogger(__name__)
 
@@ -52,7 +53,7 @@ def invalid_file(path):
 
 
 @contextmanager
-def _generate_csr(certificate_service, collection, address, user):
+def _generate_csr(certificate_service, collection, address):
     csr_path = pathlib.Path(f"{address}.csr")
     if invalid_file(csr_path):
         LOG.debug("Generating new CSR")
@@ -68,7 +69,7 @@ def _generate_csr(certificate_service, collection, address, user):
             "AlternativeNames": [address],
             "Organization": CSR_ORGANIZATION,
             "OrganizationalUnit": CSR_ORGANIZATIONAL_UNIT,
-            "Email": user.email,
+            "Email": CSR_EMAIL,
         }
         with csr_path.open(mode="w", encoding="utf-8") as csr:
             result = certificate_service._conn.post(target_uri, data=data, timeout=30.0)
@@ -79,7 +80,7 @@ def _generate_csr(certificate_service, collection, address, user):
 
 
 @contextmanager
-def _request_cert(email, csr_path):
+def _request_cert(csr_path):
     crt_path = pathlib.Path(f".lego/certificates/{csr_path.with_suffix('.crt')}")
     if invalid_file(crt_path):
         LOG.debug("Requesting certificate")
@@ -90,7 +91,7 @@ def _request_cert(email, csr_path):
                 "--server",
                 ACME_SERVER,
                 "--email",
-                email,
+                CSR_EMAIL,
                 "--dns",
                 "designate",
                 "--dns.disable-cp",
@@ -321,7 +322,7 @@ def get_current_cert_hpe(manager):
     )
 
 
-def install_cert_hpe(address, root, user, best_before):
+def install_cert_hpe(address, root, best_before):
     manager = root.get_manager()
 
     cert = get_current_cert_hpe(manager)
@@ -329,7 +330,7 @@ def install_cert_hpe(address, root, user, best_before):
         return
 
     with _generate_csr_hpe(manager, address) as csr_path:
-        with _request_cert(user.email, csr_path) as cert_path:
+        with _request_cert(csr_path) as cert_path:
             cert_content = _get_certificate_content(cert_path)
 
     if import_ssl_certificate_hpe(manager, cert_content):
@@ -358,7 +359,7 @@ def _find_manager_cert(root, manufacturer):
         return None, None
 
 
-def get_new_cert(address, root, manufacturer, user, best_before, force_renewal=False):
+def get_new_cert(address, root, manufacturer, best_before, force_renewal=False):
     certificate_service, cert = _find_manager_cert(root, manufacturer)
     if not cert:
         return None, None
@@ -371,8 +372,8 @@ def get_new_cert(address, root, manufacturer, user, best_before, force_renewal=F
     else:  # Hopefully
         collection = {"@odata.id": cert.path.rsplit("/", 1)[0]}
 
-    with _generate_csr(certificate_service, collection, address, user) as csr_path:
-        with _request_cert(user.email, csr_path) as cert_path:
+    with _generate_csr(certificate_service, collection, address) as csr_path:
+        with _request_cert(csr_path) as cert_path:
             return cert, _get_certificate_content(cert_path)
 
 

@@ -79,9 +79,6 @@ def main():
 
     conn = openstack.connect()
 
-    user_id = conn.session.get_user_id()
-    user = conn.get_user_by_id(user_id)
-
     def _dispatch(item):
         address, username, password = item
         redfish_certrobot.THREAD_LOCAL.address = address
@@ -99,24 +96,25 @@ def main():
             manufacturer = root.get_system().manufacturer.split()[0].lower()
 
             if manufacturer == "lenovo":
-                # Lenovo issues a CSR with just the hostname, which is rejected by our ACME server
+                # Lenovo issues a CSR with just the hostname in the SAN,
+                # which is rejected by our ACME server
                 return None
 
             if manufacturer == "hpe":
-                return issue.install_cert_hpe(address, root, user, best_before)
+                return issue.install_cert_hpe(address, root, best_before)
 
             version = _version_check(manufacturer, root)
             if not version:
                 return None
 
-            cert, cert_content = issue.get_new_cert(address, root, manufacturer, user, best_before,
-                force_renewal=force_renewal)
+            cert, cert_content = issue.get_new_cert(address, root, manufacturer,
+                                                    best_before, force_renewal=force_renewal)
             if not cert or not cert_content:
                 return
 
             issue.replace_certificate(manufacturer, version, root, cert, cert_content)
 
-    for item in nodes.nodes(conn):
+    for item in nodes.nodes(conn, conductor_group="testing"):
         try:
             _dispatch(item)
         except (tenacity.RetryError, sushy.exceptions.SushyError) as e:
