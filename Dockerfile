@@ -1,5 +1,8 @@
 ARG PYVER=3.11
 ARG REPO=python
+
+FROM goacme/lego:latest AS lego
+
 # build stage
 FROM ${REPO}:${PYVER} AS builder
 
@@ -20,6 +23,7 @@ LABEL source_repository=https://github.com/sapcc/redfish-certrobot/
 # retrieve packages from build stage
 ENV PYTHONPATH=/redfish_certrobot/pkgs
 COPY --from=builder /redfish_certrobot/__pypackages__/3.11/lib $PYTHONPATH
+COPY --from=lego /usr/bin/lego /usr/bin/lego
 
 # set command/entrypoint, adapt to fit your needs
 CMD ["python", "-m", "redfish_certrobot"]
