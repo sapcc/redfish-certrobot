@@ -114,7 +114,7 @@ def main():
 
             issue.replace_certificate(manufacturer, version, root, cert, cert_content)
 
-    for item in nodes.nodes(conn, conductor_group="testing"):
+    for item in nodes.nodes(conn):
         try:
             _dispatch(item)
         except (tenacity.RetryError, sushy.exceptions.SushyError) as e:
