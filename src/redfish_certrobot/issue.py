@@ -162,7 +162,7 @@ def _get_common_name(ssl_cert_name):
         return attrs[0].value
     return None
 
-
+@tenacity.retry(wait=tenacity.wait_fixed(1), stop=tenacity.stop_after_attempt(60))
 def get_active_cert(address):
     pem_data = ssl.get_server_certificate((address, 443))
     return x509.load_pem_x509_certificate(pem_data.encode('ascii'), default_backend())
