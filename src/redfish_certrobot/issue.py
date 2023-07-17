@@ -35,15 +35,15 @@ from sushy.resources.certificateservice.constants import CertificateType
 from sushy.resources.constants import ResetType
 
 
-ACME_SERVER = os.getenv("ACME_SERVER")
-DNS_RESOLVERS = os.getenv("DNS_RESOLVERS")
-ISSUER = os.getenv("ISSUER")
-CSR_COUNTRY = os.getenv("CSR_COUNTRY")
-CSR_STATE = os.getenv("CSR_STATE")
-CSR_CITY = os.getenv("CSR_CITY")
-CSR_ORGANIZATION = os.getenv("CSR_ORGANIZATION")
-CSR_ORGANIZATIONAL_UNIT = os.getenv("CSR_ORGANIZATIONAL_UNIT")
-CSR_EMAIL = os.getenv("CSR_EMAIL")
+ACME_SERVER = os.getenv("ACME_SERVER").strip('"\' \t')
+DNS_RESOLVERS = os.getenv("DNS_RESOLVERS").strip('"\' \t')
+ISSUER = os.getenv("ISSUER").strip('"\' \t')
+CSR_COUNTRY = os.getenv("CSR_COUNTRY").strip('"\' \t')
+CSR_STATE = os.getenv("CSR_STATE").strip('"\' \t')
+CSR_CITY = os.getenv("CSR_CITY").strip('"\' \t')
+CSR_ORGANIZATION = os.getenv("CSR_ORGANIZATION").strip('"\' \t')
+CSR_ORGANIZATIONAL_UNIT = os.getenv("CSR_ORGANIZATIONAL_UNIT").strip('"\' \t')
+CSR_EMAIL = os.getenv("CSR_EMAIL").strip('"\' \t')
 
 LOG = logging.getLogger(__name__)
 
