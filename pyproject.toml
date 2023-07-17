@@ -16,7 +16,7 @@ requires-python = ">=3.11"
 license = {text = "Apache-2.0"}
 
 [project.scripts]
-redfish-certrobot = "redfish_certrobot.my_module:main_cli"
+redfish-certrobot = "redfish_certrobot.__main__:main"
 
 [tool]
 
