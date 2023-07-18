@@ -20,6 +20,7 @@ import os
 import pathlib
 import subprocess
 import ssl
+import threading
 import typing
 from dataclasses import dataclass
 from datetime import datetime
@@ -79,32 +80,36 @@ def _generate_csr(certificate_service, collection, address):
     csr_path.unlink(missing_ok=True)
 
 
+_LEGO_LOCK = threading.Lock()
+
+
 @contextmanager
 def _request_cert(csr_path):
     crt_path = pathlib.Path(f".lego/certificates/{csr_path.with_suffix('.crt')}")
     if invalid_file(crt_path):
         LOG.debug("Requesting certificate")
-        subprocess.run(
-            [
-                "lego",
-                "--accept-tos",
-                "--server",
-                ACME_SERVER,
-                "--email",
-                CSR_EMAIL,
-                "--dns",
-                "designate",
-                "--dns.disable-cp",
-                "--dns.resolvers",
-                DNS_RESOLVERS,
-                "--csr",
-                csr_path,
-                "--cert.timeout",
-                "60",
-                "run",
-            ],
-            check=True,
-        )
+        with _LEGO_LOCK:
+            subprocess.run(
+                [
+                    "lego",
+                    "--accept-tos",
+                    "--server",
+                    ACME_SERVER,
+                    "--email",
+                    CSR_EMAIL,
+                    "--dns",
+                    "designate",
+                    "--dns.disable-cp",
+                    "--dns.resolvers",
+                    DNS_RESOLVERS,
+                    "--csr",
+                    csr_path,
+                    "--cert.timeout",
+                    "60",
+                    "run",
+                ],
+                check=True,
+            )
     yield crt_path
     crt_path.unlink(missing_ok=True)
 

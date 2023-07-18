@@ -15,7 +15,11 @@
 #    under the License.
 
 import logging
+import os
+import sys
+import threading
 import urllib3
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 
 import openstack
@@ -117,14 +121,35 @@ def main():
 
             issue.replace_certificate(manufacturer, version, root, cert, cert_content)
 
-    for item in nodes.nodes(conn):
-        try:
-            _dispatch(item)
-        except sushy.exceptions.SushyError as e:
-            LOG.error("Cannot issue certificate due to %s", e)
+    with ThreadPoolExecutor() as executor:
+        for node in nodes.nodes(conn):
+            executor.submit(_dispatch, node)
+
+    return 0
+
+
+_original_threading_excepthook = None
+_original_sys_excepthook = None
+
+
+def _threading_excepthook_handler(**args):
+    _original_threading_excepthook(**args)
+    print(f"{__name__}: unhandled exception in thread", file=sys.stderr, flush=True)
+    os._exit(1)
+
+
+def _sys_excepthook_handler(**args):
+    _original_sys_excepthook(**args)
+    print(f"{__name__}: unhandled exception in process", file=sys.stderr, flush=True)
+    os._exit(1)
 
 
 if __name__ == "__main__":
-    import sys
-
-    sys.exit(main())
+    _original_threading_excepthook = threading.excepthook
+    threading.excepthook = _threading_excepthook_handler
+    _original_sys_excepthook = sys.excepthook
+    sys.excepthook = _sys_excepthook_handler
+    res = main()
+    if res == 0:
+        print("Done")
+    sys.exit(res)
