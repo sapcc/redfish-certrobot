@@ -20,7 +20,6 @@ from datetime import datetime, timedelta, timezone
 
 import openstack
 import sushy
-import tenacity
 
 import redfish_certrobot
 import redfish_certrobot.issue as issue
