@@ -121,7 +121,7 @@ def main():
     for item in nodes.nodes(conn):
         try:
             _dispatch(item)
-        except (tenacity.RetryError, sushy.exceptions.SushyError) as e:
+        except sushy.exceptions.SushyError as e:
             LOG.error("Cannot issue certificate due to %s", e)
 
 

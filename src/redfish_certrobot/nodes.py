@@ -30,7 +30,7 @@ def nodes(conn=None, **nodeargs):
         yield address, username, password
 
 
-@tenacity.retry(wait=tenacity.wait_fixed(1), stop=tenacity.stop_after_attempt(5))
+@tenacity.retry(wait=tenacity.wait_fixed(0.5), stop=tenacity.stop_after_attempt(10), reraise=True)
 def sushy_client(address, auth):
     url = f"https://{address}/redfish/v1/"
     return sushy.Sushy(url, auth=auth, verify=False)

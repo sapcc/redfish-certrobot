@@ -162,9 +162,10 @@ def _get_common_name(ssl_cert_name):
         return attrs[0].value
     return None
 
-@tenacity.retry(wait=tenacity.wait_fixed(1), stop=tenacity.stop_after_attempt(60))
+
+@tenacity.retry(wait=tenacity.wait_fixed(0.5), stop=tenacity.stop_after_attempt(6), reraise=True)
 def get_active_cert(address):
-    pem_data = ssl.get_server_certificate((address, 443))
+    pem_data = ssl.get_server_certificate((address, 443), timeout=10)
     return x509.load_pem_x509_certificate(pem_data.encode('ascii'), default_backend())
 
 
@@ -180,8 +181,7 @@ class CertError(Enum):
 def active_cert_valid_until(address, best_before: datetime, cert=None) -> typing.Tuple[datetime, CertError]:
     if not cert:
         try:
-            pem_data = ssl.get_server_certificate((address, 443))
-            cert = x509.load_pem_x509_certificate(pem_data.encode('ascii'), default_backend())
+            cert = get_active_cert(address)
         except (TimeoutError, ConnectionRefusedError):
             return None, CertError.CONNECTION_FAILURE
 
