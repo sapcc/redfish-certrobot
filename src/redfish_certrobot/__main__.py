@@ -85,7 +85,11 @@ def main():
 
         not_valid_after, cert_error = issue.active_cert_valid_until(address, best_before)
 
-        if not_valid_after is None or cert_error == cert_error.NO_ERROR:
+        if cert_error == cert_error.CONNECTION_FAILURE:
+            LOG.info("Cannot connect to server")
+            return None
+
+        if cert_error == cert_error.NO_ERROR:
             LOG.info(f"Has active valid certificate until {not_valid_after}")
             return not_valid_after
 
