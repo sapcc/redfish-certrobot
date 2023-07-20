@@ -132,14 +132,14 @@ _original_threading_excepthook = None
 _original_sys_excepthook = None
 
 
-def _threading_excepthook_handler(**args):
-    _original_threading_excepthook(**args)
+def _threading_excepthook_handler(*args, **kwargs):
+    _original_threading_excepthook(*args, **kwargs)
     print(f"{__name__}: unhandled exception in thread", file=sys.stderr, flush=True)
     os._exit(1)
 
 
-def _sys_excepthook_handler(**args):
-    _original_sys_excepthook(**args)
+def _sys_excepthook_handler(*args, **kwargs):
+    _original_sys_excepthook(*args, **kwargs)
     print(f"{__name__}: unhandled exception in process", file=sys.stderr, flush=True)
     os._exit(1)
 
