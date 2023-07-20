@@ -121,7 +121,7 @@ def main():
 
             issue.replace_certificate(manufacturer, version, root, cert, cert_content)
 
-    with ThreadPoolExecutor() as executor:
+    with ThreadPoolExecutor(max_workers=16) as executor:
         for node in nodes.nodes(conn):
             executor.submit(_dispatch, node)
 
