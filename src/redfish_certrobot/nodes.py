@@ -13,21 +13,30 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import logging
+
 import openstack
 import sushy
 import tenacity
 
+import redfish_certrobot
+
+LOG = logging.getLogger(__name__)
 
 def nodes(conn=None, **nodeargs):
     conn = conn or openstack.connect()
 
     for node in conn.baremetal.nodes(fields=["name", "driver_info"], **nodeargs):
         di = node.driver_info
-        username = di["ipmi_username"]
-        password = di["ipmi_password"]
-        address = di["ipmi_address"]
-        # LOG.debug("Checking %s", node.name)
-        yield address, username, password
+        redfish_certrobot.THREAD_LOCAL.address = node.name
+        try:
+            username = di["ipmi_username"]
+            password = di["ipmi_password"]
+            address = di["ipmi_address"]
+            # LOG.debug("Checking %s", node.name)
+            yield address, username, password
+        except KeyError as e:
+            LOG.warning("Missing %s", e)
 
 
 @tenacity.retry(wait=tenacity.wait_fixed(0.5), stop=tenacity.stop_after_attempt(10), reraise=True)
