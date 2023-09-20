@@ -80,7 +80,7 @@ def _generate_csr(certificate_service, collection, address):
     csr_path.unlink(missing_ok=True)
 
 
-_LEGO_LOCK = threading.Lock()
+_LEGO_LOCK = threading.BoundedSemaphore(8)  # Just a guess, higher values might work as well
 
 
 @contextmanager
