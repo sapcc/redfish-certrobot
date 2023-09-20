@@ -102,11 +102,6 @@ def main():
 
             manufacturer = root.get_system().manufacturer.split()[0].lower()
 
-            if manufacturer == "lenovo":
-                # Lenovo issues a CSR with just the hostname in the SAN,
-                # which is rejected by our ACME server
-                return None
-
             if manufacturer == "hpe":
                 return issue.install_cert_hpe(address, root, best_before)
 
