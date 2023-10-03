@@ -1,4 +1,4 @@
-ARG PYVER=3.11
+ARG PYVER=3.12
 ARG REPO=python
 FROM goacme/lego:v4.9.1 AS lego
 
