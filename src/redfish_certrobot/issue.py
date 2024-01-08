@@ -239,7 +239,7 @@ def _generate_csr_hpe(manager, address):
             "City": "Walldorf",
             "CommonName": address,
             "Country": "DE",
-            "IncludeIP": True,
+            "IncludeIP": False,
             "OrgName": "SAP",
             "OrgUnit": "CC",
             "State": "BW",
