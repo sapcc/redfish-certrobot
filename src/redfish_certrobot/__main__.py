@@ -76,6 +76,8 @@ def _setup_logging():
 def main():
     _setup_logging()
 
+    errors = 0
+
     now = datetime.now(timezone.utc)
     max_delta = timedelta(days=7)
     best_before = now - max_delta
@@ -116,11 +118,22 @@ def main():
 
             issue.replace_certificate(manufacturer, version, root, cert, cert_content)
 
+    def _dispatch_logged(item):
+        try:
+            return _dispatch(item)
+        except Exception:
+            nonlocal errors
+            errors += 1
+            import traceback
+            LOG.error(traceback.format_exc())
+        return None
+
     with ThreadPoolExecutor(max_workers=16) as executor:
         for node in nodes.nodes(conn):
-            executor.submit(_dispatch, node)
+            executor.submit(_dispatch_logged, node)
 
-    return 0
+    return min(errors, 1)
+
 
 
 _original_threading_excepthook = None
