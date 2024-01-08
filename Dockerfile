@@ -22,13 +22,14 @@ RUN --mount=type=cache,target=${PIP_CACHE_DIR},sharing=locked \
 
 # run stage
 FROM ${REPO}:${PYVER}-slim
+ARG PYVER=3.12
 LABEL source_repository=https://github.com/sapcc/redfish-certrobot/
 # retrieve packages from build stage
 ARG CA_CRT=https://aia.pki.co.sap.com/aia/SAPNetCA_G2.crt
 ADD ${CA_CRT} /usr/local/share/ca-certificates/
 RUN update-ca-certificates
 ENV PYTHONPATH=/redfish_certrobot/pkgs
-COPY --from=builder /redfish_certrobot/__pypackages__/3.11/lib $PYTHONPATH
+COPY --from=builder /redfish_certrobot/__pypackages__/${PYVER}/lib $PYTHONPATH
 COPY --from=lego /usr/bin/lego /usr/bin/lego
 
 # set command/entrypoint, adapt to fit your needs
