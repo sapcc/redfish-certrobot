@@ -23,7 +23,7 @@ import ssl
 import threading
 import typing
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, UTC
 
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
@@ -182,18 +182,18 @@ class CertError(Enum):
     CONNECTION_FAILURE = 5
 
 
-def active_cert_valid_until(address, best_before: datetime, cert=None) -> typing.Tuple[datetime, CertError]:
+def active_cert_valid_until(address, best_before: datetime, cert=None) -> typing.Tuple[datetime | None, CertError]:
     if not cert:
         try:
             cert = get_active_cert(address)
-        except (TimeoutError, ConnectionRefusedError):
+        except (TimeoutError, ConnectionError):
             return None, CertError.CONNECTION_FAILURE
 
     not_valid_after = cert.not_valid_after
     if not_valid_after.tzinfo is None:
-        not_valid_after = not_valid_after.replace(tzinfo=best_before.tzinfo)
+        not_valid_after = not_valid_after.replace(tzinfo=UTC)
 
-    if not_valid_after < best_before:
+    if best_before > not_valid_after:
         LOG.info("Active certificate expires soon or is expired")
         return not_valid_after, CertError.TOO_OLD
 
