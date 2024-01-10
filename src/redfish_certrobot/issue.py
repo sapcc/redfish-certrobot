@@ -36,15 +36,15 @@ from sushy.resources.certificateservice.constants import CertificateType
 from sushy.resources.constants import ResetType
 
 
-ACME_SERVER = os.getenv("ACME_SERVER").strip('"\' \t')
-DNS_RESOLVERS = os.getenv("DNS_RESOLVERS").strip('"\' \t')
-ISSUER = os.getenv("ISSUER").strip('"\' \t')
-CSR_COUNTRY = os.getenv("CSR_COUNTRY").strip('"\' \t')
-CSR_STATE = os.getenv("CSR_STATE").strip('"\' \t')
-CSR_CITY = os.getenv("CSR_CITY").strip('"\' \t')
-CSR_ORGANIZATION = os.getenv("CSR_ORGANIZATION").strip('"\' \t')
-CSR_ORGANIZATIONAL_UNIT = os.getenv("CSR_ORGANIZATIONAL_UNIT").strip('"\' \t')
-CSR_EMAIL = os.getenv("CSR_EMAIL").strip('"\' \t')
+ACME_SERVER = os.getenv("ACME_SERVER").strip("\"' \t")
+DNS_RESOLVERS = os.getenv("DNS_RESOLVERS").strip("\"' \t")
+ISSUER = os.getenv("ISSUER").strip("\"' \t")
+CSR_COUNTRY = os.getenv("CSR_COUNTRY").strip("\"' \t")
+CSR_STATE = os.getenv("CSR_STATE").strip("\"' \t")
+CSR_CITY = os.getenv("CSR_CITY").strip("\"' \t")
+CSR_ORGANIZATION = os.getenv("CSR_ORGANIZATION").strip("\"' \t")
+CSR_ORGANIZATIONAL_UNIT = os.getenv("CSR_ORGANIZATIONAL_UNIT").strip("\"' \t")
+CSR_EMAIL = os.getenv("CSR_EMAIL").strip("\"' \t")
 
 LOG = logging.getLogger(__name__)
 
@@ -170,7 +170,7 @@ def _get_common_name(ssl_cert_name):
 @tenacity.retry(wait=tenacity.wait_fixed(0.5), stop=tenacity.stop_after_attempt(6), reraise=True)
 def get_active_cert(address):
     pem_data = ssl.get_server_certificate((address, 443), timeout=10)
-    return x509.load_pem_x509_certificate(pem_data.encode('ascii'), default_backend())
+    return x509.load_pem_x509_certificate(pem_data.encode("ascii"), default_backend())
 
 
 class CertError(Enum):
