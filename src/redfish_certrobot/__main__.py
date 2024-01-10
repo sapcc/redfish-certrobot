@@ -80,7 +80,7 @@ def main():
 
     now = datetime.now(timezone.utc)
     max_delta = timedelta(days=7)
-    best_before = now - max_delta
+    best_before = now + max_delta
 
     conn = openstack.connect()
 
