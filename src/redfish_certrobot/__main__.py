@@ -67,9 +67,12 @@ def _setup_logging():
     logging.setLogRecordFactory(_record_factory)
 
     # Enable logging at DEBUG level
-    logging.basicConfig(encoding="utf-8", level=logging.INFO,
+    logging.basicConfig(
+        encoding="utf-8",
+        level=logging.INFO,
         format="%(asctime)s [%(levelname)s] [%(address)s] %(module)s:%(lineno)d: %(message)s",
-        datefmt="%Y/%m/%d %H:%M:%S")
+        datefmt="%Y/%m/%d %H:%M:%S",
+    )
     LOG.setLevel(logging.DEBUG)
 
 
@@ -111,8 +114,9 @@ def main():
             if not version:
                 return None
 
-            cert, cert_content = issue.get_new_cert(address, root, manufacturer,
-                                                    best_before, force_renewal=force_renewal)
+            cert, cert_content = issue.get_new_cert(
+                address, root, manufacturer, best_before, force_renewal=force_renewal
+            )
             if not cert or not cert_content:
                 return
 
@@ -125,6 +129,7 @@ def main():
             nonlocal errors
             errors += 1
             import traceback
+
             LOG.error(traceback.format_exc())
         return None
 
@@ -133,7 +138,6 @@ def main():
             executor.submit(_dispatch_logged, node)
 
     return min(errors, 1)
-
 
 
 _original_threading_excepthook = None

@@ -23,6 +23,7 @@ import redfish_certrobot
 
 LOG = logging.getLogger(__name__)
 
+
 def nodes(conn=None, **nodeargs):
     conn = conn or openstack.connect()
 
