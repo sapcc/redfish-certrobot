@@ -14,16 +14,17 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import collections
 import logging
 import os
 import sys
 import threading
-import urllib3
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 
 import openstack
 import sushy
+import urllib3
 
 import redfish_certrobot
 import redfish_certrobot.issue as issue
@@ -76,10 +77,28 @@ def _setup_logging():
     LOG.setLevel(logging.DEBUG)
 
 
+def _summary(results):
+    print("Success:")
+    errors = 0
+    address_by_error = collections.defaultdict(list)
+    for address, result in results:
+        if isinstance(result, datetime):
+            print(f"{address}\t{result}")
+        else:
+            errors += 1
+            address_by_error[result].append(address)
+
+    print("\nFailures:", file=sys.stderr)
+    for error, addresses in address_by_error.items():
+        print(f"  {error}", file=sys.stderr)
+        for address in sorted(addresses):
+            print(f"    {address}", file=sys.stderr)
+
+    return errors
+
+
 def main():
     _setup_logging()
-
-    errors = 0
 
     now = datetime.now(timezone.utc)
     max_delta = timedelta(days=7)
@@ -94,12 +113,14 @@ def main():
         not_valid_after, cert_error = issue.active_cert_valid_until(address, best_before)
 
         if cert_error == cert_error.CONNECTION_FAILURE:
+            msg = "Cannot connect to server"
             LOG.info("Cannot connect to server")
-            return None
+            return address, msg
 
         if cert_error == cert_error.NO_ERROR:
-            LOG.info(f"Has active valid certificate until {not_valid_after}")
-            return not_valid_after
+            msg = f"Has active valid certificate until {not_valid_after}"
+            LOG.info(msg)
+            return address, not_valid_after
 
         force_renewal = cert_error == cert_error.INVALID_SAN
         with sushy.auth.SessionAuth(username, password) as auth:
@@ -112,32 +133,31 @@ def main():
 
             version = _version_check(manufacturer, root)
             if not version:
-                return None
+                return address, "Invalid version"
 
             cert, cert_content = issue.get_new_cert(
                 address, root, manufacturer, best_before, force_renewal=force_renewal
             )
             if not cert or not cert_content:
-                return
+                return address, "Could not issue certificate"
 
             issue.replace_certificate(manufacturer, version, root, cert, cert_content)
+            return address, now  # Not 100% correct, but sufficient
 
     def _dispatch_logged(item):
         try:
             return _dispatch(item)
-        except Exception:
-            nonlocal errors
-            errors += 1
+        except Exception as e:
             import traceback
 
+            address, *_ = item
             LOG.error(traceback.format_exc())
-        return None
+            return address, type(e).__name__
 
     with ThreadPoolExecutor(max_workers=16) as executor:
-        for node in nodes.nodes(conn):
-            executor.submit(_dispatch_logged, node)
+        results = executor.map(_dispatch_logged, nodes.nodes(conn))
 
-    return min(errors, 1)
+    return _summary(results)
 
 
 _original_threading_excepthook = None
@@ -162,6 +182,4 @@ if __name__ == "__main__":
     _original_sys_excepthook = sys.excepthook
     sys.excepthook = _sys_excepthook_handler
     res = main()
-    if res == 0:
-        print("Done")
     sys.exit(res)
