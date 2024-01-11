@@ -353,9 +353,14 @@ def _find_manager_cert(root, manufacturer):
 
         certificate_locations = certificate_service.certificate_locations
 
-        for cert in certificate_locations.get_members():
-            if cert.path.startswith(manager.path):
-                return certificate_service, cert
+        # get_members() may raise an exception which we cannot catch
+        for cert_id in certificate_locations.members_identities:
+            try:
+                cert = certificate_locations.get_member(cert_id)
+                if cert.path.startswith(manager.path):
+                    return certificate_service, cert
+            except sushy.exceptions.MalformedAttributeError as e:
+                LOG.warning("Cannot retrieve %s due to %s", cert_id, e)
 
         LOG.warning("Certificate for Manager not found")
         return certificate_service, None
