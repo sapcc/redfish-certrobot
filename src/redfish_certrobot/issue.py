@@ -396,4 +396,10 @@ def replace_certificate(manufacturer, version, root, cert, cert_content):
         return replace_certificate_dell(version, root, cert_content)
 
     certificate_service = root.get_certificate_service()
-    certificate_service.replace_certificate(cert.path, cert_content, CertificateType.PEM)
+
+    if manufacturer != "lenovo":
+        cert_uri = cert.path
+    else:  # Or maybe even all of them?
+        cert_uri = {"@odata.id": cert.path}
+
+    certificate_service.replace_certificate(cert_uri, cert_content, CertificateType.PEM)
