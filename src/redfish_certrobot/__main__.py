@@ -148,12 +148,20 @@ def main():
             return address, now  # Not 100% correct, but sufficient
 
     def _dispatch_logged(item):
+        address, *_ = item
         try:
             return _dispatch(item)
+        except (
+            sushy.exceptions.ConnectionError,
+            sushy.exceptions.HTTPError,
+            urllib3.exceptions.HTTPError,
+            IOError,
+        ) as e:
+            LOG.error(e)
+            return address, type(e).__name__
         except Exception as e:
             import traceback
 
-            address, *_ = item
             LOG.error(traceback.format_exc())
             return address, type(e).__name__
 
