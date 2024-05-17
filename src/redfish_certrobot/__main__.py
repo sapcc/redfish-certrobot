@@ -62,7 +62,10 @@ def _setup_logging():
 
     def _record_factory(*args, **kwargs):
         record = old_factory(*args, **kwargs)
-        record.address = redfish_certrobot.THREAD_LOCAL.address
+        try:
+            record.address = redfish_certrobot.THREAD_LOCAL.address
+        except AttributeError:
+            record.address = ""
         return record
 
     logging.setLogRecordFactory(_record_factory)
