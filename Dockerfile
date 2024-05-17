@@ -1,6 +1,6 @@
 ARG PYVER=3.12
 ARG REPO=python
-FROM goacme/lego:v4.9.1 AS lego
+FROM goacme/lego:v4.16.1 AS lego
 
 # build stage
 FROM ${REPO}:${PYVER} AS builder
@@ -30,7 +30,8 @@ ADD ${CA_CRT} /usr/local/share/ca-certificates/
 RUN update-ca-certificates
 ENV PYTHONPATH=/redfish_certrobot/pkgs
 COPY --from=builder /redfish_certrobot/__pypackages__/${PYVER}/lib $PYTHONPATH
-COPY --from=lego /usr/bin/lego /usr/bin/lego
+ENV OS_CLOUD=default
+COPY --from=lego /lego /usr/bin/lego
 
 # set command/entrypoint, adapt to fit your needs
 CMD ["python", "-m", "redfish_certrobot"]
