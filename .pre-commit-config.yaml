@@ -21,3 +21,10 @@ repos:
     language: system
     pass_filenames: false
     always_run: true
+- repo: https://github.com/pdm-project/pdm
+  rev: 2.15.2
+  hooks:
+  - id: pdm-export
+    # command arguments, e.g.:
+    args: ['-o', 'upper-constraints.txt', '--without-hashes']
+    files: ^pdm.lock$
