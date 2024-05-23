@@ -104,7 +104,7 @@ def main():
     _setup_logging()
 
     now = datetime.now(timezone.utc)
-    max_delta = timedelta(days=7)
+    max_delta = timedelta(days=14)
     best_before = now + max_delta
 
     conn = openstack.connect()
