@@ -329,9 +329,12 @@ def get_current_cert_hpe(manager):
 def install_cert_hpe(address, root, best_before):
     manager = root.get_manager()
 
-    cert = get_current_cert_hpe(manager)
-    if cert_valid_until(cert, best_before, address):
-        return
+    try:
+        cert = get_current_cert_hpe(manager)
+        if cert_valid_until(cert, best_before, address):
+            return
+    except KeyError:
+        pass
 
     with _generate_csr_hpe(manager, address) as csr_path:
         with _request_cert(csr_path) as cert_path:
