@@ -182,40 +182,40 @@ class CertError(Enum):
     CONNECTION_FAILURE = 5
 
 
-def active_cert_valid_until(address, best_before: datetime, cert=None) -> typing.Tuple[datetime | None, CertError]:
+def active_cert_valid_until(address, best_before_utc: datetime, cert=None) -> typing.Tuple[datetime | None, CertError]:
     if not cert:
         try:
             cert = get_active_cert(address)
         except (TimeoutError, ConnectionError):
             return None, CertError.CONNECTION_FAILURE
 
-    not_valid_after = cert.not_valid_after
-    if not_valid_after.tzinfo is None:
-        not_valid_after = not_valid_after.replace(tzinfo=UTC)
+    not_valid_after_utc = cert.not_valid_after_utc
+    if not_valid_after_utc.tzinfo is None:
+        not_valid_after_utc = not_valid_after_utc.replace(tzinfo=UTC)
 
-    if best_before > not_valid_after:
+    if best_before_utc > not_valid_after_utc:
         LOG.info("Active certificate expires soon or is expired")
-        return not_valid_after, CertError.TOO_OLD
+        return not_valid_after_utc, CertError.TOO_OLD
 
     if (cn := _get_common_name(cert.subject)) != address:
         LOG.info("Active certificate issued to %s", cn)
-        return not_valid_after, CertError.INVALID_SUBJECT
+        return not_valid_after_utc, CertError.INVALID_SUBJECT
 
     if (cn := _get_common_name(cert.issuer)) != ISSUER:
         LOG.info("Active certificate issued by %s instead of %s", cn, ISSUER)
-        return not_valid_after, CertError.INVALID_ISSUER
+        return not_valid_after_utc, CertError.INVALID_ISSUER
 
     ext = cert.extensions.get_extension_for_oid(x509.oid.ExtensionOID.SUBJECT_ALTERNATIVE_NAME)
     if not ext:
         LOG.info("Active certificate does not contain a SAN")
-        return not_valid_after, CertError.INVALID_SAN
+        return not_valid_after_utc, CertError.INVALID_SAN
 
     san = ext.value.get_values_for_type(x509.DNSName)
     if address not in san:
         LOG.info("Active certificate does not contain host as SAN %s", san)
-        return not_valid_after, CertError.INVALID_SAN
+        return not_valid_after_utc, CertError.INVALID_SAN
 
-    return not_valid_after, CertError.NO_ERROR
+    return not_valid_after_utc, CertError.NO_ERROR
 
 
 @tenacity.retry(wait=tenacity.wait_fixed(1), stop=tenacity.stop_after_attempt(60))
