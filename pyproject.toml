@@ -6,7 +6,7 @@ authors = [
     {name = "Fabian Wiesel", email = "fabian.wiesel@sap.com"},
 ]
 dependencies = [
-    "sushy @ git+https://github.com/sapcc/sushy.git@handle_session_uri",
+    "sushy @ git+https://github.com/openstack/sushy.git",
     "openstacksdk>=0.103.0",
     "tenacity>=8.1.0",
     "setuptools>=65.6.3", # See: https://github.com/Infinidat/munch/issues/67
