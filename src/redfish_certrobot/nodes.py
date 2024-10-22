@@ -31,13 +31,18 @@ def nodes(conn=None, **nodeargs):
         di = node.driver_info
         redfish_certrobot.THREAD_LOCAL.address = node.name
         try:
-            username = di["ipmi_username"]
-            password = di["ipmi_password"]
-            address = di["ipmi_address"]
-            # LOG.debug("Checking %s", node.name)
+            username = di["redfish_username"]
+            password = di["redfish_password"]
+            address = di["redfish_address"]
             yield address, username, password
         except KeyError as e:
-            LOG.warning("Missing %s", e)
+            try:
+                username = di["ipmi_username"]
+                password = di["ipmi_password"]
+                address = di["ipmi_address"]
+                yield address, username, password
+            except KeyError:
+                LOG.warning("Missing %s", e)
 
 
 @tenacity.retry(wait=tenacity.wait_fixed(0.5), stop=tenacity.stop_after_attempt(10), reraise=True)
