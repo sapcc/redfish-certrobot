@@ -128,11 +128,20 @@ def main():
         force_renewal = cert_error == cert_error.INVALID_SAN
         with sushy.auth.SessionAuth(username, password) as auth:
             root = nodes.sushy_client(address, auth)
+            manufacturer = root.get_system().manufacturer
 
-            manufacturer = root.get_system().manufacturer.split()[0].lower()
+            manager = root.get_manager()
+
+            # At least HPE Superdome
+            if not manufacturer:
+                manufacturer = manager.json.get("Manufacturer")
+
+            manufacturer = manufacturer.split()[0].lower()
+            manager_name = manager.name
 
             if manufacturer == "hpe":
-                return issue.install_cert_hpe(address, root, best_before_utc)
+                if manager_name != "RMC Manager":
+                    return issue.install_cert_hpe(address, root, best_before_utc)
 
             version = _version_check(manufacturer, root)
             if not version:
