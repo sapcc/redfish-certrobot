@@ -103,9 +103,9 @@ def _summary(results):
 def main():
     _setup_logging()
 
-    now = datetime.now(timezone.utc)
+    now_utc = datetime.now(timezone.utc)
     max_delta = timedelta(days=14)
-    best_before = now + max_delta
+    best_before_utc = now_utc + max_delta
 
     conn = openstack.connect()
 
@@ -113,7 +113,7 @@ def main():
         address, username, password = item
         redfish_certrobot.THREAD_LOCAL.address = address
 
-        not_valid_after, cert_error = issue.active_cert_valid_until(address, best_before)
+        not_valid_after_utc, cert_error = issue.active_cert_valid_until(address, best_before_utc)
 
         if cert_error == cert_error.CONNECTION_FAILURE:
             msg = "Cannot connect to server"
@@ -121,9 +121,9 @@ def main():
             return address, msg
 
         if cert_error == cert_error.NO_ERROR:
-            msg = f"Has active valid certificate until {not_valid_after}"
+            msg = f"Has active valid certificate until {not_valid_after_utc}"
             LOG.info(msg)
-            return address, not_valid_after
+            return address, not_valid_after_utc
 
         force_renewal = cert_error == cert_error.INVALID_SAN
         with sushy.auth.SessionAuth(username, password) as auth:
@@ -132,20 +132,20 @@ def main():
             manufacturer = root.get_system().manufacturer.split()[0].lower()
 
             if manufacturer == "hpe":
-                return issue.install_cert_hpe(address, root, best_before)
+                return issue.install_cert_hpe(address, root, best_before_utc)
 
             version = _version_check(manufacturer, root)
             if not version:
                 return address, "Invalid version"
 
             cert, cert_content = issue.get_new_cert(
-                address, root, manufacturer, best_before, force_renewal=force_renewal
+                address, root, manufacturer, best_before_utc, force_renewal=force_renewal
             )
             if not cert or not cert_content:
                 return address, "Could not issue certificate"
 
             issue.replace_certificate(manufacturer, version, root, cert, cert_content)
-            return address, now  # Not 100% correct, but sufficient
+            return address, now_utc  # Not 100% correct, but sufficient
 
     def _dispatch_logged(item):
         address, *_ = item
