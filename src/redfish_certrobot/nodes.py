@@ -14,6 +14,7 @@
 #    under the License.
 
 import logging
+from urllib.parse import urlparse
 
 import openstack
 import sushy
@@ -34,7 +35,8 @@ def nodes(conn=None, **nodeargs):
             username = di["redfish_username"]
             password = di["redfish_password"]
             address = di["redfish_address"]
-            yield address, username, password
+            parsed = urlparse(address)
+            yield parsed.netloc, username, password
         except KeyError as e:
             try:
                 username = di["ipmi_username"]
