@@ -24,7 +24,7 @@ FROM ${REPO}:${PYVER}-slim
 ARG PYVER=3.12
 LABEL source_repository=https://github.com/sapcc/redfish-certrobot/
 # retrieve packages from build stage
-ARG CA_CRT=https://aia.pki.co.sap.com/aia/SAPNetCA_G2.crt
+ARG CA_CRT=https://aia.pki.co.sap.com/aia/SAPNetCA_G2_2.crt
 ADD ${CA_CRT} /usr/local/share/ca-certificates/
 RUN update-ca-certificates
 ENV PYTHONPATH=/redfish_certrobot/pkgs
