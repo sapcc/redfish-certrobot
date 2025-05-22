@@ -13,45 +13,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-# import logging
-# from urllib.parse import urlparse
-
-# import openstack
-# import sushy
-# import tenacity
-
-# import redfish_certrobot
-
-# LOG = logging.getLogger(__name__)
-
-
-# def nodes(conn=None, **nodeargs):
-#     conn = conn or openstack.connect()
-
-#     for node in conn.baremetal.nodes(fields=["name", "driver_info"], **nodeargs):
-#         di = node.driver_info
-#         redfish_certrobot.THREAD_LOCAL.address = node.name
-#         try:
-#             username = di["redfish_username"]
-#             password = di["redfish_password"]
-#             address = di["redfish_address"]
-#             parsed = urlparse(address)
-#             yield parsed.netloc, username, password
-#         except KeyError as e:
-#             try:
-#                 username = di["ipmi_username"]
-#                 password = di["ipmi_password"]
-#                 address = di["ipmi_address"]
-#                 yield address, username, password
-#             except KeyError:
-#                 LOG.warning("Missing %s", e)
-
-
-# @tenacity.retry(wait=tenacity.wait_fixed(0.5), stop=tenacity.stop_after_attempt(10), reraise=True)
-# def sushy_client(address, auth):
-#     url = f"https://{address}/redfish/v1/"
-#     return sushy.Sushy(url, auth=auth, verify=False)
-
 
 import logging
 import os
@@ -105,52 +66,6 @@ def get_devices_from_netbox():
     if not data.get("data") or not data["data"].get("device_list"):
         raise ValueError("No devices data found in response")
     return data["data"]["device_list"]
-
-
-# def get_devices_from_netbox(params=None):
-#     """Pull devices from NetBox REST API."""
-#     if not NETBOX_TOKEN:
-#         raise EnvironmentError("NETBOX_API_TOKEN is not set")
-
-#     params = params or DEFAULT_PARAMS.copy()
-#     url = urljoin(NETBOX_URL, "/api/dcim/devices/")
-#     devices = []
-
-#     while url:
-#         resp = requests.get(url, headers=HEADERS, params=params)
-#         resp.raise_for_status()
-#         data = resp.json()
-#         devices.extend(data.get("results", []))
-#         url = data.get("next")  # pagination
-
-#     return devices
-
-
-# def nodes():
-#     """Yield (ip, username, password) for each node from NetBox."""
-#     devices = get_devices_from_netbox()
-
-#     for dev in devices:
-#         name = dev.get("name")
-#         redfish_certrobot.THREAD_LOCAL.address = name
-
-#         primary = dev.get("primaryIp4") or dev.get("primaryIp")
-#         if not primary:
-#             LOG.warning("Skipping device %s: no primary IP", name)
-#             continue
-
-#         ip = primary["address"].split("/")[0]
-#         parsed = urlparse(f"https://{ip}")
-
-#         # Get credentials from custom_fields
-#         cf = dev.get("custom_fields", {})
-#         username = cf.get("redfish_username") or cf.get("ipmi_username")
-#         password = cf.get("redfish_password") or cf.get("ipmi_password")
-
-#         if username and password:
-#             yield parsed.netloc, username, password
-#         else:
-#             LOG.warning("Skipping device %s (%s): missing credentials", name, ip)
 
 def nodes():
     """Yield (ip, username, password) for each node from NetBox."""
