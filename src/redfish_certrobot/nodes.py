@@ -13,41 +13,180 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import logging
-from urllib.parse import urlparse
+# import logging
+# from urllib.parse import urlparse
 
-import openstack
+# import openstack
+# import sushy
+# import tenacity
+
+# import redfish_certrobot
+
+# LOG = logging.getLogger(__name__)
+
+
+# def nodes(conn=None, **nodeargs):
+#     conn = conn or openstack.connect()
+
+#     for node in conn.baremetal.nodes(fields=["name", "driver_info"], **nodeargs):
+#         di = node.driver_info
+#         redfish_certrobot.THREAD_LOCAL.address = node.name
+#         try:
+#             username = di["redfish_username"]
+#             password = di["redfish_password"]
+#             address = di["redfish_address"]
+#             parsed = urlparse(address)
+#             yield parsed.netloc, username, password
+#         except KeyError as e:
+#             try:
+#                 username = di["ipmi_username"]
+#                 password = di["ipmi_password"]
+#                 address = di["ipmi_address"]
+#                 yield address, username, password
+#             except KeyError:
+#                 LOG.warning("Missing %s", e)
+
+
+# @tenacity.retry(wait=tenacity.wait_fixed(0.5), stop=tenacity.stop_after_attempt(10), reraise=True)
+# def sushy_client(address, auth):
+#     url = f"https://{address}/redfish/v1/"
+#     return sushy.Sushy(url, auth=auth, verify=False)
+
+
+import logging
+import os
+from urllib.parse import urljoin, urlparse
+
+import requests
 import sushy
 import tenacity
 
 import redfish_certrobot
-
+import os
+import requests
+from urllib.parse import urljoin
+from dotenv import load_dotenv
 LOG = logging.getLogger(__name__)
 
+load_dotenv()
 
-def nodes(conn=None, **nodeargs):
-    conn = conn or openstack.connect()
+NETBOX_URL = os.getenv("NETBOX_URL", "https://netbox.global.cloud.sap")
+NETBOX_TOKEN = os.getenv("NETBOX_API_TOKEN")
 
-    for node in conn.baremetal.nodes(fields=["name", "driver_info"], **nodeargs):
-        di = node.driver_info
-        redfish_certrobot.THREAD_LOCAL.address = node.name
-        try:
-            username = di["redfish_username"]
-            password = di["redfish_password"]
-            address = di["redfish_address"]
-            parsed = urlparse(address)
-            yield parsed.netloc, username, password
-        except KeyError as e:
-            try:
-                username = di["ipmi_username"]
-                password = di["ipmi_password"]
-                address = di["ipmi_address"]
-                yield address, username, password
-            except KeyError:
-                LOG.warning("Missing %s", e)
+HEADERS = {
+    "Authorization": f"Token {NETBOX_TOKEN}",
+    "Accept": "application/json",
+    "Content-Type": "application/json",  
+}
+
+GRAPHQL_QUERY = """
+query {
+  device_list(filters: {
+    status: "active",
+    tag: "server",
+    tenant_group_id: "3",
+    tenant_id: "1"
+  }) {
+    name
+    primary_ip4 {
+      address
+    }
+  }
+}
+"""
+
+def get_devices_from_netbox():
+    url = urljoin(NETBOX_URL, "/graphql/")
+
+    response = requests.post(url, json={"query": GRAPHQL_QUERY}, headers=HEADERS)
+    response.raise_for_status()
+    data = response.json()
+
+    if not data.get("data") or not data["data"].get("device_list"):
+        raise ValueError("No devices data found in response")
+    return data["data"]["device_list"]
+
+
+# def get_devices_from_netbox(params=None):
+#     """Pull devices from NetBox REST API."""
+#     if not NETBOX_TOKEN:
+#         raise EnvironmentError("NETBOX_API_TOKEN is not set")
+
+#     params = params or DEFAULT_PARAMS.copy()
+#     url = urljoin(NETBOX_URL, "/api/dcim/devices/")
+#     devices = []
+
+#     while url:
+#         resp = requests.get(url, headers=HEADERS, params=params)
+#         resp.raise_for_status()
+#         data = resp.json()
+#         devices.extend(data.get("results", []))
+#         url = data.get("next")  # pagination
+
+#     return devices
+
+
+# def nodes():
+#     """Yield (ip, username, password) for each node from NetBox."""
+#     devices = get_devices_from_netbox()
+
+#     for dev in devices:
+#         name = dev.get("name")
+#         redfish_certrobot.THREAD_LOCAL.address = name
+
+#         primary = dev.get("primaryIp4") or dev.get("primaryIp")
+#         if not primary:
+#             LOG.warning("Skipping device %s: no primary IP", name)
+#             continue
+
+#         ip = primary["address"].split("/")[0]
+#         parsed = urlparse(f"https://{ip}")
+
+#         # Get credentials from custom_fields
+#         cf = dev.get("custom_fields", {})
+#         username = cf.get("redfish_username") or cf.get("ipmi_username")
+#         password = cf.get("redfish_password") or cf.get("ipmi_password")
+
+#         if username and password:
+#             yield parsed.netloc, username, password
+#         else:
+#             LOG.warning("Skipping device %s (%s): missing credentials", name, ip)
+
+def nodes():
+    """Yield (ip, username, password) for each node from NetBox."""
+    devices = get_devices_from_netbox()
+
+    for dev in devices:
+        name = dev.get("name")
+        redfish_certrobot.THREAD_LOCAL.address = name
+
+        primary = dev.get("primary_ip4") or dev.get("primary_ip")
+        if not primary:
+            LOG.warning("Skipping device %s: no primary IP", name)
+            continue
+
+        ip = primary["address"].split("/")[0]
+        parsed = urlparse(f"https://{ip}")
+
+        # No credentials available from custom fields
+        yield name, parsed.netloc, None, None
 
 
 @tenacity.retry(wait=tenacity.wait_fixed(0.5), stop=tenacity.stop_after_attempt(10), reraise=True)
 def sushy_client(address, auth):
     url = f"https://{address}/redfish/v1/"
     return sushy.Sushy(url, auth=auth, verify=False)
+
+if __name__ == "__main__":
+    try:
+        devices = get_devices_from_netbox()
+        print(f"Fetched {len(devices)} devices from NetBox")
+    except Exception as e:
+        print(f"Error fetching devices: {e}")
+
+    print("Iterating over nodes():")
+    try:
+        for name, ip, user, pwd in nodes():
+            print(f"Node {name}, IP: {ip}, Username: {user}, Password: {pwd}")
+    except Exception as e:
+        print(f"Error iterating nodes: {e}")
