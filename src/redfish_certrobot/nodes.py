@@ -18,22 +18,22 @@ import os
 from urllib.parse import urljoin
 import requests
 import tenacity
-from dotenv import load_dotenv
 import sushy
 import subprocess
 import openstack
 
-logging.basicConfig(level=logging.INFO)
 LOG = logging.getLogger(__name__)
-
-c1, c2=0,0
-no_ip_devices=[]
-
-load_dotenv()
 
 VAULT_ADDR = os.getenv("VAULT_ADDR", "https://vault.global.cloud.sap")
 VAULT_TOKEN = os.getenv("VAULT_TOKEN")
-VAULT_SECRET_PATH = "foundation-secrets/data/qa-de-1/ironic/ipmi-user/ironic"  
+VAULT_REGION = os.getenv("VAULT_REGION")
+VAULT_PROJECT = os.getenv("VAULT_PROJECT")
+VAULT_ENV = os.getenv("VAULT_ENV", "foundation-secrets")  
+
+if not VAULT_REGION or not VAULT_PROJECT:
+    raise RuntimeError("VAULT_REGION and VAULT_PROJECT environment variables must be set")
+
+VAULT_SECRET_PATH = f"{VAULT_ENV}/data/{VAULT_REGION}/{VAULT_PROJECT}/ipmi-user/ironic"
 
 NETBOX_URL = os.getenv("NETBOX_URL", "https://netbox.global.cloud.sap")
 
@@ -57,23 +57,18 @@ query {
 """
 
 def get_bmc_creds_from_vault():
-    if not VAULT_TOKEN:
-        raise RuntimeError("Vault token not found. Please set VAULT_TOKEN environment variable.")
+    username = os.getenv("BMC_USERNAME")
+    password = os.getenv("BMC_PASSWORD")
 
-    url = f"{VAULT_ADDR}/v1/{VAULT_SECRET_PATH}"
-    headers = {"X-Vault-Token": VAULT_TOKEN}
-    LOG.debug(f"Fetching BMC creds from Vault at {url}")
+    if not username:
+        LOG.error("Missing BMC_USERNAME in environment.")
+        raise RuntimeError("Missing BMC_USERNAME")
 
-    response = requests.get(url, headers=headers)
-    response.raise_for_status()
+    if not password:
+        LOG.error("Missing BMC_PASSWORD in environment.")
+        raise RuntimeError("Missing BMC_PASSWORD")
 
-    secret_data = response.json().get("data", {}).get("data", {})
-    username = secret_data.get("username")
-    password = secret_data.get("password")
-
-    if not username or not password:
-        raise ValueError("BMC credentials not found in Vault response")
-
+    LOG.info("Successfully retrieved BMC credentials.")
     return username, password
 
 def get_devices_from_netbox():
@@ -91,20 +86,14 @@ def get_devices_from_netbox():
     return data["data"]["device_list"]
 
 def nodes():
-    
-    global c1, c2, no_ip_devices
     vault_username, vault_password = get_bmc_creds_from_vault()
-
     devices = get_devices_from_netbox()
-    vault_username, vault_password = get_bmc_creds_from_vault()
 
     for dev in devices:
         name = dev.get("name")
         oob_ip_info = dev.get("oob_ip")
 
         if not oob_ip_info or not oob_ip_info.get("address"):
-            no_ip_devices.append(name)
-            c1+=1
             LOG.warning("Skipping device %s: no OOB IP in NetBox", name)
             continue
 
