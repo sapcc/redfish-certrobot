@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ironic
+  annotations:
+    reloader.stakater.com/auto: "true"
+spec:
+  template:
+    spec:
+      containers:
+        - name: ironic
+          image: {{ required ".Values.global.registry is missing" .Values.global.registry}}/ironic:{{.Values.imageVersion | required "Please set .imageVersion or similar" }}
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: BMC_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: ironic-bmc-secret
+                  key: ipmi_user_name
+            - name: BMC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ironic-bmc-secret
+                  key: ipmi_user_passwd
+            - name: VAULT_REGION
+              value: "{{ .Values.region }}"
+            - name: VAULT_ADDR
+              value: "{{ .Values.vault.addr }}"
+            - name: VAULT_PROJECT
+              value: "{{ .Values.vault.project }}"
+            - name: NETBOX_URL
+              value: "{{ .Values.netbox.url }}"
+            - name: VAULT_ENV
+              value: "{{ .Values.vault.env }}"
