@@ -14,37 +14,79 @@
 #    under the License.
 
 import logging
-from urllib.parse import urlparse
-
-import openstack
-import sushy
+import os
+from urllib.parse import urljoin
+import requests
 import tenacity
-
-import redfish_certrobot
+import sushy
+import subprocess
+import openstack
 
 LOG = logging.getLogger(__name__)
 
+NETBOX_URL = os.getenv("NETBOX_URL")
 
-def nodes(conn=None, **nodeargs):
-    conn = conn or openstack.connect()
+GRAPHQL_QUERY = """
+query {
+  device_list(filters: {
+    status: "active",
+    tag: "server",
+    tenant_group_id: "3",
+    tenant_id: "1"
+  }) {
+    name
+    site {
+      name
+    }
+    oob_ip {
+      address
+    }
+  }
+}
+"""
 
-    for node in conn.baremetal.nodes(fields=["name", "driver_info"], **nodeargs):
-        di = node.driver_info
-        redfish_certrobot.THREAD_LOCAL.address = node.name
-        try:
-            username = di["redfish_username"]
-            password = di["redfish_password"]
-            address = di["redfish_address"]
-            parsed = urlparse(address)
-            yield parsed.netloc, username, password
-        except KeyError as e:
-            try:
-                username = di["ipmi_username"]
-                password = di["ipmi_password"]
-                address = di["ipmi_address"]
-                yield address, username, password
-            except KeyError:
-                LOG.warning("Missing %s", e)
+def get_bmc_creds_from_vault():
+    username = os.getenv("BMC_USERNAME")
+    password = os.getenv("BMC_PASSWORD")
+
+    if not username:
+        LOG.error("Missing BMC_USERNAME in environment.")
+        raise RuntimeError("Missing BMC_USERNAME")
+
+    if not password:
+        LOG.error("Missing BMC_PASSWORD in environment.")
+        raise RuntimeError("Missing BMC_PASSWORD")
+
+    LOG.info("Successfully retrieved BMC credentials.")
+    return username, password
+
+def get_devices_from_netbox():
+    url = urljoin(NETBOX_URL, "/graphql/")
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json"
+    }
+    response = requests.post(url, json={"query": GRAPHQL_QUERY}, headers=headers)
+    response.raise_for_status()
+
+    data = response.json()
+    if not data.get("data") or not data["data"].get("device_list"):
+        raise ValueError("No devices data found in NetBox response")
+    return data["data"]["device_list"]
+
+def nodes():
+    vault_username, vault_password = get_bmc_creds_from_vault()
+    devices = get_devices_from_netbox()
+
+    for dev in devices:
+        name = dev.get("name")
+        oob_ip_info = dev.get("oob_ip")
+
+        if not oob_ip_info or not oob_ip_info.get("address"):
+            LOG.warning("Skipping device %s: no OOB IP in NetBox", name)
+            continue
+
+        yield name, oob_ip_info["address"], vault_username, vault_password
 
 
 @tenacity.retry(wait=tenacity.wait_fixed(0.5), stop=tenacity.stop_after_attempt(10), reraise=True)
