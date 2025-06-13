@@ -2,4 +2,3 @@
 *.orig
 *.egg-info
 *.csr
-env-netbox/
