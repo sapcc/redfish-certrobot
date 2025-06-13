@@ -24,18 +24,7 @@ import openstack
 
 LOG = logging.getLogger(__name__)
 
-VAULT_ADDR = os.getenv("VAULT_ADDR", "https://vault.global.cloud.sap")
-VAULT_TOKEN = os.getenv("VAULT_TOKEN")
-VAULT_REGION = os.getenv("VAULT_REGION")
-VAULT_PROJECT = os.getenv("VAULT_PROJECT")
-VAULT_ENV = os.getenv("VAULT_ENV", "foundation-secrets")  
-
-if not VAULT_REGION or not VAULT_PROJECT:
-    raise RuntimeError("VAULT_REGION and VAULT_PROJECT environment variables must be set")
-
-VAULT_SECRET_PATH = f"{VAULT_ENV}/data/{VAULT_REGION}/{VAULT_PROJECT}/ipmi-user/ironic"
-
-NETBOX_URL = os.getenv("NETBOX_URL", "https://netbox.global.cloud.sap")
+NETBOX_URL = os.getenv("NETBOX_URL")
 
 GRAPHQL_QUERY = """
 query {
