@@ -19,8 +19,6 @@ from urllib.parse import urljoin
 import requests
 import tenacity
 import sushy
-import subprocess
-import openstack
 
 LOG = logging.getLogger(__name__)
 
@@ -45,7 +43,7 @@ query {
 }
 """
 
-def get_bmc_creds_from_vault():
+def get_bmc_creds_from_env():
     username = os.getenv("BMC_USERNAME")
     password = os.getenv("BMC_PASSWORD")
 
@@ -75,7 +73,7 @@ def get_devices_from_netbox():
     return data["data"]["device_list"]
 
 def nodes():
-    vault_username, vault_password = get_bmc_creds_from_vault()
+    bmc_username, bmc_password = get_bmc_creds_from_env()
     devices = get_devices_from_netbox()
 
     for dev in devices:
@@ -86,7 +84,7 @@ def nodes():
             LOG.warning("Skipping device %s: no OOB IP in NetBox", name)
             continue
 
-        yield name, oob_ip_info["address"], vault_username, vault_password
+        yield name, oob_ip_info["address"], bmc_username, bmc_password
 
 
 @tenacity.retry(wait=tenacity.wait_fixed(0.5), stop=tenacity.stop_after_attempt(10), reraise=True)
