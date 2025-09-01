@@ -27,7 +27,8 @@ NETBOX_URL = os.getenv("NETBOX_URL")
 GRAPHQL_QUERY = """
 query {
   device_list(filters: {
-    status: "active",
+    status: "active"
+    OR: { status: "staged" },
     tag: "server",
     tenant_group_id: "3",
     tenant_id: "1"
