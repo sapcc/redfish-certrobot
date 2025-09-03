@@ -23,6 +23,7 @@ import sushy
 LOG = logging.getLogger(__name__)
 
 NETBOX_URL = os.getenv("NETBOX_URL")
+REGION = os.getenv("REGION")
 
 GRAPHQL_QUERY = """
 query {
@@ -31,7 +32,8 @@ query {
     OR: { status: "staged" },
     tag: "server",
     tenant_group_id: "3",
-    tenant_id: "1"
+    tenant_id: "1",
+    region: "%s"
   }) {
     name
     site {
@@ -42,7 +44,7 @@ query {
     }
   }
 }
-"""
+""" % (REGION)
 
 def get_bmc_creds_from_env():
     username = os.getenv("BMC_USERNAME")
