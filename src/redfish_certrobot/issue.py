@@ -54,7 +54,7 @@ def invalid_file(path):
 
 
 @contextmanager
-def _generate_csr(certificate_service, collection, address):
+def _generate_csr(certificate_service, collection, address, manufacturer):
     csr_path = pathlib.Path(f"{address}.csr")
     if invalid_file(csr_path):
         LOG.debug("Generating new CSR")
@@ -72,6 +72,9 @@ def _generate_csr(certificate_service, collection, address):
             "OrganizationalUnit": CSR_ORGANIZATIONAL_UNIT,
             "Email": CSR_EMAIL,
         }
+        if manufacturer.lower() == "lenovo":
+            data.pop("Email", None)  # remove email for lenovo
+
         with csr_path.open(mode="w", encoding="utf-8") as csr:
             result = certificate_service._conn.post(target_uri, data=data, timeout=30.0)
             data = result.json()
@@ -384,7 +387,7 @@ def get_new_cert(address, root, manufacturer, best_before, force_renewal=False):
     else:  # Hopefully
         collection = {"@odata.id": cert.path.rsplit("/", 1)[0]}
 
-    with _generate_csr(certificate_service, collection, address) as csr_path:
+    with _generate_csr(certificate_service, collection, address, manufacturer) as csr_path:
         with _request_cert(csr_path) as cert_path:
             return cert, _get_certificate_content(cert_path)
 
