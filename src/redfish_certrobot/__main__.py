@@ -175,7 +175,7 @@ def main():
             return address, type(e).__name__
 
     with ThreadPoolExecutor(max_workers=16) as executor:
-        results = executor.map(_dispatch_logged, nodes.nodes(conn))
+        results = executor.map(_dispatch_logged, nodes.nodes())
 
     return _summary(results)
 
