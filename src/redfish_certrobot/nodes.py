@@ -96,7 +96,7 @@ def nodes():
         yield ip, bmc_username, bmc_password
 
 
-@tenacity.retry(wait=tenacity.wait_fixed(0.5), stop=tenacity.stop_after_attempt(10), reraise=True)
+@tenacity.retry(wait=tenacity.wait_exponential(multiplier=1, min=5, max=30), stop=tenacity.stop_after_attempt(6), reraise=True)
 def sushy_client(address, auth):
     url = f"https://{address}/redfish/v1/"
     return sushy.Sushy(url, auth=auth, verify=False)
