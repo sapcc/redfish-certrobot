@@ -170,7 +170,7 @@ def _get_common_name(ssl_cert_name):
     return None
 
 
-@tenacity.retry(wait=tenacity.wait_fixed(0.5), stop=tenacity.stop_after_attempt(6), reraise=True)
+@tenacity.retry(wait=tenacity.wait_exponential(multiplier=1, min=5, max=30), stop=tenacity.stop_after_attempt(6), reraise=True)
 def get_active_cert(address):
     pem_data = ssl.get_server_certificate((address, 443), timeout=10)
     return x509.load_pem_x509_certificate(pem_data.encode("ascii"), default_backend())
@@ -221,7 +221,7 @@ def active_cert_valid_until(address, best_before_utc: datetime, cert=None) -> ty
     return not_valid_after_utc, CertError.NO_ERROR
 
 
-@tenacity.retry(wait=tenacity.wait_fixed(1), stop=tenacity.stop_after_attempt(60))
+@tenacity.retry(wait=tenacity.wait_exponential(multiplier=1, min=5, max=30), stop=tenacity.stop_after_attempt(6))
 def _fetch_csr_hpe(manager):
     client = manager._conn
     target_uri = f"{manager.path}/SecurityService/HttpsCert/"

@@ -107,6 +107,7 @@ def main():
     max_delta = timedelta(days=14)
     best_before_utc = now_utc + max_delta
 
+    # We need this because the lego designate provider needs a config
     conn = openstack.connect()
 
     def _dispatch(item):

@@ -18,6 +18,7 @@ import os
 from urllib.parse import urljoin
 import requests
 import tenacity
+from sys import exit as safe_exit
 import sushy
 
 LOG = logging.getLogger(__name__)
@@ -40,7 +41,7 @@ query {
       name
     }
     oob_ip {
-      address
+      dns_name
     }
   }
 }
@@ -67,8 +68,12 @@ def get_devices_from_netbox():
         "Accept": "application/json",
         "Content-Type": "application/json"
     }
-    response = requests.post(url, json={"query": GRAPHQL_QUERY}, headers=headers)
-    response.raise_for_status()
+    if REGION != "":
+      response = requests.post(url, json={"query": GRAPHQL_QUERY}, headers=headers)
+      response.raise_for_status()
+    else:
+      LOG.error("No region set, aborting")
+      safe_exit(-1)
 
     data = response.json()
     if not data.get("data") or not data["data"].get("device_list"):
@@ -83,14 +88,15 @@ def nodes():
         name = dev.get("name")
         oob_ip_info = dev.get("oob_ip")
 
-        if not oob_ip_info or not oob_ip_info.get("address"):
-            LOG.warning("Skipping device %s: no OOB IP in NetBox", name)
+        if not oob_ip_info or not oob_ip_info.get("dns_name"):
+            LOG.warning("Skipping device %s: no OOB DNS Name in NetBox", name)
             continue
 
-        yield name, oob_ip_info["address"], bmc_username, bmc_password
+        ip = oob_ip_info["dns_name"]
+        yield ip, bmc_username, bmc_password
 
 
-@tenacity.retry(wait=tenacity.wait_fixed(0.5), stop=tenacity.stop_after_attempt(10), reraise=True)
+@tenacity.retry(wait=tenacity.wait_exponential(multiplier=1, min=5, max=30), stop=tenacity.stop_after_attempt(6), reraise=True)
 def sushy_client(address, auth):
     url = f"https://{address}/redfish/v1/"
-    return sushy.Sushy(url, auth=auth, verify=False)
+    return sushy.Sushy(url, auth=auth, verify=False, server_side_retries=3, server_side_retries_delay=10)
