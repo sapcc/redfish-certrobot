@@ -87,7 +87,8 @@ def nodes():
             LOG.warning("Skipping device %s: no OOB IP in NetBox", name)
             continue
 
-        yield name, oob_ip_info["address"], bmc_username, bmc_password
+        ip = oob_ip_info["address"].split("/")[0] # Split on '/' and take the IP part 
+        yield ip, bmc_username, bmc_password
 
 
 @tenacity.retry(wait=tenacity.wait_fixed(0.5), stop=tenacity.stop_after_attempt(10), reraise=True)
