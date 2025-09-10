@@ -49,3 +49,12 @@ it has only been tested with Designate through.
 | OS_PROJECT_NAME         | Project name                                                                        |
 | OS_USERNAME             | Username                                                                            |
 | OS_PASSWORD             | Password                                                                            |
+
+## Running locally
+To use this locally with uv do the following:
+```
+# to install dependencies and the tool itself as module
+uv pip install .
+# to run the tool, if things are changed in the code the need to get installed to be active
+uv run -m redfish_certrobot
+```
