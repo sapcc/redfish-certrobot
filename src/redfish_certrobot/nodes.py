@@ -99,4 +99,4 @@ def nodes():
 @tenacity.retry(wait=tenacity.wait_exponential(multiplier=1, min=5, max=30), stop=tenacity.stop_after_attempt(6), reraise=True)
 def sushy_client(address, auth):
     url = f"https://{address}/redfish/v1/"
-    return sushy.Sushy(url, auth=auth, verify=False)
+    return sushy.Sushy(url, auth=auth, verify=False, server_side_retries=3, server_side_retries_delay=10)
