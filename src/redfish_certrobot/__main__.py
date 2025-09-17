@@ -158,9 +158,13 @@ def main():
             return address, now_utc  # Not 100% correct, but sufficient
 
     def _dispatch_logged(item):
-        address, *_ = item
+        address = item[0] if item else "<unknown>"
         try:
-            return _dispatch(item)
+            result = _dispatch(item)
+            if result is None:  # guard against bad returns
+                LOG.error("Dispatch returned None for %s", address)
+                return address, "Dispatch returned None"
+            return result
         except (
             sushy.exceptions.ConnectionError,
             sushy.exceptions.HTTPError,
