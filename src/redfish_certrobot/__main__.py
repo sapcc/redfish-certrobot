@@ -104,7 +104,7 @@ def main():
     _setup_logging()
 
     now_utc = datetime.now(timezone.utc)
-    max_delta = timedelta(days=14)
+    max_delta = timedelta(days=30)
     best_before_utc = now_utc + max_delta
 
     # We need this because the lego designate provider needs a config
