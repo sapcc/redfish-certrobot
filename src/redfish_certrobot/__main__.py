@@ -39,9 +39,9 @@ def _version_check(manufacturer, root):
     min_version = _MIN_FIRMWARE_MAJOR_VERSION.get(manufacturer)
     if not min_version:
         return True
-
     manager = root.get_manager()
     firmware_version = manager.firmware_version
+    model = manager.model
     if not firmware_version:
         LOG.warning("Skipping due to firmware version not being reported")
         return False
@@ -49,8 +49,15 @@ def _version_check(manufacturer, root):
     major_version, _ = firmware_version.split(".", 1)
     major_version = int(major_version)
     if major_version < min_version:
-        LOG.warning("Skipping due to outdated BMC firmware version %s (<%s)", firmware_version, min_version)
-        return False
+        if manufacturer != "dell":
+            LOG.warning("Skipping due to outdated BMC firmware version %s (<%s)", firmware_version, min_version, manufacturer, model)
+            return False
+        # Dell changed the versioning of their BMCs with iDrac 10 and the versions are now starting with 1 instead of 5 to 9,
+        # this corresponds to model 17G in the redfish manager. So for Dell nodes that are not this model (more likely: generation)
+        # we do the usual skipping and only for model 17G we skip the version check.
+        elif manufacturer == "dell" and model != "17G Monolithic":
+            LOG.warning("Skipping due to outdated BMC firmware version %s (<%s) and manufacturer %s and model %s", firmware_version, min_version, manufacturer, model)
+            return False
 
     return major_version
 
