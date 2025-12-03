@@ -55,6 +55,9 @@ To use this locally with uv do the following:
 ```
 # to install dependencies and the tool itself as module
 uv pip install .
-# to run the tool, if things are changed in the code the need to get installed to be active
-uv run -m redfish_certrobot
+# Source the env file, if needed do adjustments before
+# Notice: the redfish certrobot is incompatible with OS_AUTH_TYPE `tg17v3password` and needs a set OS_PASSWORD
+source src/redfish_certrobot/.env.example
+# to run the tool. This should automatically use changed code.
+uv run src/redfish_certrobot/__main__.py
 ```
