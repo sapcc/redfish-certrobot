@@ -58,7 +58,12 @@ uv pip install .
 uv pip install -e .
 # Source the env file, if needed do adjustments before
 # Notice: the redfish certrobot is incompatible with OS_AUTH_TYPE `tg17v3password` and needs a set OS_PASSWORD
-source src/redfish_certrobot/.env.example
+cp src/redfish_certrobot/.env.example env.local
+cp clouds.yaml.example clouds.yaml
+# the clouds.yaml needs valid OpenStack credentials, so your personal user & password or that of a technical user
+# you can´t use variables or similar so this is insecure and should only be used for testing
+# vim clouds.yaml to fill in credentials
+source env.local
 # to run the tool. This should automatically use changed code.
 uv run src/redfish_certrobot/__main__.py
 ```
