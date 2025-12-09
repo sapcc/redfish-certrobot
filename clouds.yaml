@@ -1,0 +1,9 @@
+clouds:
+  default:
+      auth:
+        auth_url: https://identity-3.qa-de-1.cloud.sap/v3
+        username:
+        password:
+        user_domain_name: ccadmin
+        project_name: master
+        project_domain_name: ccadmin

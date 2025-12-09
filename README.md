@@ -55,6 +55,7 @@ To use this locally with uv do the following:
 ```
 # to install dependencies and the tool itself as module
 uv pip install .
+uv pip install -e .
 # Source the env file, if needed do adjustments before
 # Notice: the redfish certrobot is incompatible with OS_AUTH_TYPE `tg17v3password` and needs a set OS_PASSWORD
 source src/redfish_certrobot/.env.example
