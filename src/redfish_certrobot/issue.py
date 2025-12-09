@@ -125,16 +125,19 @@ def import_ssl_certificate_dell(manager, cert_content):
     model = manager.model
     # With iDRAC10 Dell changed the redfish path to import certificates. The new path is described here:
     # <https://developer.dell.com/apis/1796449a-cc87-4882-925b-6241fbf1bfea/versions/1.20.xx/openapi.yaml/paths/~1redfish~1v1~1Managers~1%7BManagerId%7D~1Oem~1Dell~1DelliDRACCardService~1Actions~1DelliDRACCardService.ImportCertificate/post>
-    # so now we need to distinguish between different models
-    if model != "17G Monolithic":
-        url = "Dell/Managers/iDRAC.Embedded.1/DelliDRACCardService/Actions/DelliDRACCardService.ImportSSLCertificate"
+    # so now we need to distinguish between different models. Note we are working with a manager so we
+    # don't use the full redfish path but omit the "/redfish/v1/Managers/{ManagerId}" part
+
+    # This is for the iDRAC10
+    if model == "17G Monolithic":
+        url = "Managers/iDRAC.Embedded.1/Oem/Dell/DelliDRACCardService/Actions/DelliDRACCardService.ImportSSLCertificate"
+    # the fallback for everything else  <= iDRAC9
     else:
-        url = "redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DelliDRACCardService/Actions/DelliDRACCardService.ImportCertificate"
+        url = "Dell/Managers/iDRAC.Embedded.1/DelliDRACCardService/Actions/DelliDRACCardService.ImportSSLCertificate"
     data = {
         "CertificateType": "Server",
         "SSLCertificateFile": cert_content,
     }
-
     response = manager._conn.post(
         url,
         data=data,
