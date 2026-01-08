@@ -1,6 +1,6 @@
 ARG PYVER=3.12
 ARG REPO=python
-FROM goacme/lego:v4.29.0 AS lego
+FROM goacme/lego:v4.31.0 AS lego
 
 # build stage
 FROM ${REPO}:${PYVER} AS builder
