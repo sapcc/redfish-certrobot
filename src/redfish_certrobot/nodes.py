@@ -30,7 +30,7 @@ GRAPHQL_QUERY = """
 query {
   device_list(filters: {
     status: "active"
-    OR: { status: "staged" },
+    OR: { status: "staged" OR: { status: "maintenance"}},
     tag: "server",
     tenant_group_id: "3",
     tenant_id: "1",
