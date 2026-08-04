@@ -247,15 +247,15 @@ def _generate_csr_hpe(manager, address):
     target_uri = f"{manager.path}/SecurityService/HttpsCert/Actions/HpeHttpsCert.GenerateCSR/"
 
     if invalid_file(csr_path):
-        LOG.debug("Generating new CSR")
+        LOG.info("Generating new CSR")
         data = {
-            "City": "Walldorf",
-            "CommonName": address,
-            "Country": "DE",
-            "IncludeIP": false,
             "OrgName": "SAP",
             "OrgUnit": "CC",
-            "State": "BW"
+            "CommonName": address,
+            "Country": "DE",
+            "State": "BW",
+            "City": "Walldorf",
+            "IncludeIP": False
         }
         with csr_path.open(mode="w", encoding="utf-8") as csr_file:
             result = client.post(target_uri, data=data)
