@@ -252,10 +252,10 @@ def _generate_csr_hpe(manager, address):
             "City": "Walldorf",
             "CommonName": address,
             "Country": "DE",
-            "IncludeIP": False,
+            "IncludeIP": false,
             "OrgName": "SAP",
             "OrgUnit": "CC",
-            "State": "BW",
+            "State": "BW"
         }
         with csr_path.open(mode="w", encoding="utf-8") as csr_file:
             result = client.post(target_uri, data=data)
