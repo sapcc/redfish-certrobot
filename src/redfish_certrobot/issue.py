@@ -270,6 +270,76 @@ def _generate_csr_hpe(manager, address):
     csr_path.unlink(missing_ok=True)
 
 
+@contextmanager
+def _generate_csr_fujitsu(address):
+    csr_path = pathlib.Path(f"{address}.csr")
+    key_path = pathlib.Path(f"{address}.key")
+
+    if invalid_file(csr_path) or invalid_file(key_path):
+        LOG.info("Generating Fujitsu CSR")
+
+        subprocess.run(
+            [
+                "openssl",
+                "genrsa",
+                "-out",
+                str(key_path),
+                "4096",
+            ],
+            check=True,
+        )
+
+        subprocess.run(
+            [
+                "openssl",
+                "req",
+                "-new",
+                "-utf8",
+                "-key",
+                str(key_path),
+                "-out",
+                str(csr_path),
+                "-batch",
+                "-subj",
+                (
+                    f"/C={CSR_COUNTRY}"
+                    f"/ST={CSR_STATE}"
+                    f"/L={CSR_CITY}"
+                    f"/O={CSR_ORGANIZATION}"
+                    f"/CN={address}"
+                ),
+                "-addext",
+                f"subjectAltName=DNS:{address}",
+            ],
+            check=True,
+        )
+
+    try:
+        yield csr_path, key_path
+    finally:
+        csr_path.unlink(missing_ok=True)
+        key_path.unlink(missing_ok=True)
+
+
+def _convert_private_key_to_pkcs1(key_path):
+    pkcs1_path = pathlib.Path(str(key_path).replace(".key", "_pkcs1.pem"))
+
+    subprocess.run(
+        [
+            "openssl",
+            "rsa",
+            "-traditional",
+            "-in",
+            str(key_path),
+            "-out",
+            str(pkcs1_path),
+        ],
+        check=True,
+    )
+
+    return pkcs1_path
+
+
 def import_ssl_certificate_hpe(manager, cert_content):
     client = manager._conn
     target_uri = f"{manager.path}/SecurityService/HttpsCert/Actions/HpeHttpsCert.ImportCertificate/"
@@ -357,6 +427,40 @@ def install_cert_hpe(address, root, best_before):
         manager.reset_manager(ResetType.GRACEFUL_RESTART)
 
 
+def get_current_cert_fujitsu(manager):
+    target_uri = f"{manager.path}/NetworkProtocol/HTTPS/Certificates/Certificate0"
+    response = manager._conn.get(target_uri)
+    return response.json()
+
+
+def install_cert_fujitsu(address, root, best_before, force_renewal=False):
+    manager = root.get_manager()
+    # Check existing certificate first
+    try:
+        cert = get_current_cert_fujitsu(manager)
+        valid_until = parser.parse(cert["HttpsCertificate"]["ValidNotAfter"])
+
+        if not force_renewal and valid_until > best_before:
+            LOG.info("Fujitsu certificate valid until %s", valid_until)
+            return address, valid_until
+
+    except Exception as error:
+        LOG.warning("Could not read Fujitsu current certificate: %s", error)
+
+    LOG.info("Installing new Fujitsu certificate for %s", address)
+
+    with _generate_csr_fujitsu(address) as (csr_path, key_path):
+        with _request_cert(csr_path) as cert_path:
+            cert_content = _get_certificate_content(cert_path)
+            replace_result = replace_certificate_fujitsu(manager, cert_content, key_path)
+
+    if replace_result:
+        manager.reset_manager(ResetType.GRACEFUL_RESTART)
+        return address, datetime.now(UTC)
+
+    return address, "Failed to replace Fujitsu certificate"
+
+
 def _find_manager_cert(root, manufacturer):
     try:
         manager = root.get_manager()
@@ -412,9 +516,49 @@ def replace_certificate_dell(major_version, root, cert_content):
     return False
 
 
+def replace_certificate_fujitsu(manager, cert_content, key_path):
+    pkcs1_key_path = _convert_private_key_to_pkcs1(key_path)
+
+    try:
+        with pkcs1_key_path.open(encoding="utf-8") as key_file:
+            key_content = key_file.read()
+
+        url = (
+            "Managers/iRMC/NetworkProtocol/HTTPS/Certificates/Certificate0/"
+            "Actions/Oem/FsasCertificates.ReplaceCertificate"
+        )
+        files = {
+            "certificate": (
+                "certificate.pem", cert_content, "application/x-pem-file"
+            ),
+            "private_key": (
+                "private.pem", key_content, "application/x-pem-file"
+            ),
+        }
+
+        response = manager._conn.post(url, files=files, timeout=30.0)
+
+        if response.status_code == 204:
+            LOG.info("Fujitsu iRMC certificate replaced successfully")
+            return True
+
+        LOG.error(
+            "Fujitsu certificate replacement failed: %s %s",
+            response.status_code,
+            response.text,
+        )
+        return False
+
+    finally:
+        pkcs1_key_path.unlink(missing_ok=True)
+
+
 def replace_certificate(manufacturer, version, root, cert, cert_content):
     if manufacturer == "dell":
         return replace_certificate_dell(version, root, cert_content)
+
+    if manufacturer == "fsas":
+        raise RuntimeError("Fujitsu certificate replacement requires a private key; use install_cert_fujitsu instead")
 
     certificate_service = root.get_certificate_service()
 
