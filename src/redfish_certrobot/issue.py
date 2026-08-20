@@ -24,7 +24,9 @@ import threading
 import typing
 from dataclasses import dataclass
 from datetime import datetime, UTC
-
+import tempfile
+import shutil
+from cryptography.hazmat.primitives import serialization
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 
@@ -87,9 +89,10 @@ _LEGO_LOCK = threading.BoundedSemaphore(8)  # Just a guess, higher values might 
 
 
 @contextmanager
-def _request_cert(csr_path):
-    crt_path = pathlib.Path(f".lego/certificates/{csr_path.with_suffix('.crt')}")
-    if invalid_file(crt_path):
+def _request_cert(csr_path, force=False):
+    crt_path = pathlib.Path(".lego/certificates") / f"{csr_path.stem}.crt"
+
+    if force or invalid_file(crt_path):
         LOG.debug("Requesting certificate")
         with _LEGO_LOCK:
             subprocess.run(
@@ -269,13 +272,32 @@ def _generate_csr_hpe(manager, address):
     yield csr_path
     csr_path.unlink(missing_ok=True)
 
+def verify_cert_key_match(cert_path, key_path):
+    with cert_path.open("rb") as f:
+        cert = x509.load_pem_x509_certificate(f.read())
+
+    with key_path.open("rb") as f:
+        key = serialization.load_pem_private_key(
+            f.read(),
+            password=None,
+        )
+
+    cert_public_numbers = cert.public_key().public_numbers()
+    key_public_numbers = key.public_key().public_numbers()
+
+    if cert_public_numbers != key_public_numbers:
+        raise RuntimeError("Certificate and private key do NOT match")
+
+    LOG.info("Certificate and private key MATCH")
+
 
 @contextmanager
 def _generate_csr_fujitsu(address):
-    csr_path = pathlib.Path(f"{address}.csr")
-    key_path = pathlib.Path(f"{address}.key")
+    temp_dir = pathlib.Path(tempfile.mkdtemp(prefix="redfish-certrobot-"))
+    csr_path = temp_dir / f"{address}.csr"
+    key_path = temp_dir / f"{address}.key"
 
-    if invalid_file(csr_path) or invalid_file(key_path):
+    try:
         LOG.info("Generating Fujitsu CSR")
 
         subprocess.run(
@@ -314,11 +336,9 @@ def _generate_csr_fujitsu(address):
             check=True,
         )
 
-    try:
         yield csr_path, key_path
     finally:
-        csr_path.unlink(missing_ok=True)
-        key_path.unlink(missing_ok=True)
+        shutil.rmtree(temp_dir, ignore_errors=True)
 
 
 def _convert_private_key_to_pkcs1(key_path):
@@ -449,8 +469,11 @@ def install_cert_fujitsu(address, root, best_before, force_renewal=False):
 
     LOG.info("Installing new Fujitsu certificate for %s", address)
 
+    replace_result = False
+
     with _generate_csr_fujitsu(address) as (csr_path, key_path):
-        with _request_cert(csr_path) as cert_path:
+        with _request_cert(csr_path, force=True) as cert_path:
+            verify_cert_key_match(cert_path, key_path)
             cert_content = _get_certificate_content(cert_path)
             replace_result = replace_certificate_fujitsu(manager, cert_content, key_path)
 
@@ -524,7 +547,7 @@ def replace_certificate_fujitsu(manager, cert_content, key_path):
             key_content = key_file.read()
 
         url = (
-            "Managers/iRMC/NetworkProtocol/HTTPS/Certificates/Certificate0/"
+            f"{manager.path}/NetworkProtocol/HTTPS/Certificates/Certificate0/"
             "Actions/Oem/FsasCertificates.ReplaceCertificate"
         )
         files = {
