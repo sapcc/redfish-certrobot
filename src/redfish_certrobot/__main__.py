@@ -151,6 +151,10 @@ def main():
                 if manager_name != "RMC Manager":
                     return issue.install_cert_hpe(address, root, best_before_utc)
 
+            # Fujitsu iRMC reports manufacturer as FSAS
+            if manufacturer == "fsas":
+                return issue.install_cert_fujitsu(address, root, best_before_utc, force_renewal=force_renewal)
+
             version = _version_check(manufacturer, root)
             if not version:
                 return address, "Invalid version"
