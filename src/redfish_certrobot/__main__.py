@@ -165,7 +165,7 @@ def main():
             if not cert or not cert_content:
                 return address, "Could not issue certificate"
 
-            issue.replace_certificate(manufacturer, version, root, cert, cert_content)
+            issue.replace_certificate(manufacturer, version, root, cert, cert_content, manager)
             return address, now_utc  # Not 100% correct, but sufficient
 
     def _dispatch_logged(item):
