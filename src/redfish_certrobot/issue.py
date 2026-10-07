@@ -18,6 +18,7 @@ from enum import Enum
 import logging
 import os
 import pathlib
+import re
 import subprocess
 import ssl
 import threading
@@ -592,7 +593,7 @@ def replace_certificate_fujitsu(manager, cert_content, key_path):
         pkcs1_key_path.unlink(missing_ok=True)
 
 
-def replace_certificate(manufacturer, version, root, cert, cert_content):
+def replace_certificate(manufacturer, version, root, cert, cert_content, manager):
     if manufacturer == "dell":
         return replace_certificate_dell(version, root, cert_content)
 
@@ -601,15 +602,10 @@ def replace_certificate(manufacturer, version, root, cert, cert_content):
 
     certificate_service = root.get_certificate_service()
 
-    if manufacturer == "bull":
-        # CertificateLocations returns 'bmc' alias; firmware requires 'bmc0' in CertificateUri
-        cert_uri = {"@odata.id": cert.path.replace("/Managers/bmc/", "/Managers/bmc0/")}
-        certificate_service.replace_certificate(cert_uri, cert_content, CertificateType.PEM)
-        return
-
-    if manufacturer != "lenovo":
-        cert_uri = cert.path
-    else:
-        cert_uri = {"@odata.id": cert.path}
-
+    canonical_path = re.sub(
+        r'/Managers/[^/]+/',
+        f'/Managers/{manager.identity}/',
+        cert.path
+    )
+    cert_uri = {"@odata.id": canonical_path}
     certificate_service.replace_certificate(cert_uri, cert_content, CertificateType.PEM)
