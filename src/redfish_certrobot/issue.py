@@ -228,6 +228,9 @@ def active_cert_valid_until(address, best_before_utc: datetime, cert=None) -> ty
 
     san = ext.value.get_values_for_type(x509.DNSName)
     if address not in san:
+        if _get_common_name(cert.subject) == address:
+            # Some BMCs (e.g. BULL) put Email into CSR SAN and ignore AlternativeNames; SAPNETCA issues cert with email SAN and no DNS SAN, causing unnecessary renewal on every run
+            return not_valid_after_utc, CertError.NO_ERROR
         LOG.info("Active certificate does not contain host as SAN %s", san)
         return not_valid_after_utc, CertError.INVALID_SAN
 
@@ -484,9 +487,22 @@ def install_cert_fujitsu(address, root, best_before, force_renewal=False):
     return address, "Failed to replace Fujitsu certificate"
 
 
+def _get_bmc_manager(root):
+    managers = root.get_manager_collection().get_members()
+    bmc_managers = [m for m in managers if getattr(m, "manager_type", None) == sushy.ManagerType.BMC]
+    if bmc_managers:
+        return bmc_managers[0]
+    if len(managers) == 1:
+        return managers[0]
+    raise sushy.exceptions.UnknownDefaultError(
+        f"Expected exactly 1 BMC manager, found {len(managers)}: "
+        + ", ".join(m.identity for m in managers)
+    )
+
+
 def _find_manager_cert(root, manufacturer):
     try:
-        manager = root.get_manager()
+        manager = _get_bmc_manager(root)
         try:
             certificate_service = root.get_certificate_service()
         except sushy.exceptions.MissingAttributeError:
@@ -500,7 +516,7 @@ def _find_manager_cert(root, manufacturer):
         for cert_id in certificate_locations.members_identities:
             try:
                 cert = certificate_locations.get_member(cert_id)
-                if cert.path.startswith(manager.path):
+                if "HTTPS" in cert.path:
                     return certificate_service, cert
             except sushy.exceptions.MalformedAttributeError as e:
                 LOG.warning("Cannot retrieve %s due to %s", cert_id, e)
@@ -585,9 +601,15 @@ def replace_certificate(manufacturer, version, root, cert, cert_content):
 
     certificate_service = root.get_certificate_service()
 
+    if manufacturer == "bull":
+        # CertificateLocations returns 'bmc' alias; firmware requires 'bmc0' in CertificateUri
+        cert_uri = {"@odata.id": cert.path.replace("/Managers/bmc/", "/Managers/bmc0/")}
+        certificate_service.replace_certificate(cert_uri, cert_content, CertificateType.PEM)
+        return
+
     if manufacturer != "lenovo":
         cert_uri = cert.path
-    else:  # Or maybe even all of them?
+    else:
         cert_uri = {"@odata.id": cert.path}
 
     certificate_service.replace_certificate(cert_uri, cert_content, CertificateType.PEM)

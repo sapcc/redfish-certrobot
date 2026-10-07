@@ -138,7 +138,7 @@ def main():
             root = nodes.sushy_client(address, auth)
             manufacturer = root.get_system().manufacturer
 
-            manager = root.get_manager()
+            manager = issue._get_bmc_manager(root)
 
             # At least HPE Superdome
             if not manufacturer:
