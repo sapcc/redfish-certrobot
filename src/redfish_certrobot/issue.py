@@ -449,7 +449,7 @@ def install_cert_hpe(address, root, best_before):
 
 def get_current_cert_fujitsu(manager):
     target_uri = f"{manager.path}/NetworkProtocol/HTTPS/Certificates/Certificate0"
-    response = manager._conn.get(target_uri)
+    response = manager._conn.get(target_uri, headers={"Accept": "application/json"})
     return response.json()
 
 
@@ -559,7 +559,7 @@ def replace_certificate_fujitsu(manager, cert_content, key_path):
             ),
         }
 
-        response = manager._conn.post(url, files=files, timeout=30.0)
+        response = manager._conn.post(url, files=files, headers={"Accept": "application/json"}, timeout=30.0)
 
         if response.status_code == 204:
             LOG.info("Fujitsu iRMC certificate replaced successfully")
