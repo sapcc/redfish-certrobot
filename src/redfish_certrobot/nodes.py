@@ -34,7 +34,7 @@ query {
     tag: "server",
     tenant_group_id: "3",
     tenant_id: "1",
-    manufacturer_id: ["16", "4", "9"], # this is Dell, HPE and Lenovo
+    manufacturer_id: ["16", "4", "9", "24"], # this is Dell, HPE, Lenovo and Fujitsu
     region: "%s"
   }) {
     name
