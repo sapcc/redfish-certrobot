@@ -229,7 +229,8 @@ def active_cert_valid_until(address, best_before_utc: datetime, cert=None) -> ty
 
     san = ext.value.get_values_for_type(x509.DNSName)
     if address not in san:
-        if _get_common_name(cert.subject) == address:
+        email_san = ext.value.get_values_for_type(x509.RFC822Name)
+        if _get_common_name(cert.subject) == address and email_san:
             # Some BMCs (e.g. BULL) put Email into CSR SAN and ignore AlternativeNames; SAPNETCA issues cert with email SAN and no DNS SAN, causing unnecessary renewal on every run
             return not_valid_after_utc, CertError.NO_ERROR
         LOG.info("Active certificate does not contain host as SAN %s", san)
@@ -434,7 +435,7 @@ def get_current_cert_hpe(manager):
 
 
 def install_cert_hpe(address, root, best_before):
-    manager = root.get_manager()
+    manager = _get_bmc_manager(root)
 
     try:
         cert = get_current_cert_hpe(manager)
@@ -458,7 +459,7 @@ def get_current_cert_fujitsu(manager):
 
 
 def install_cert_fujitsu(address, root, best_before, force_renewal=False):
-    manager = root.get_manager()
+    manager = _get_bmc_manager(root)
     # Check existing certificate first
     try:
         cert = get_current_cert_fujitsu(manager)
@@ -607,5 +608,8 @@ def replace_certificate(manufacturer, version, root, cert, cert_content, manager
         f'/Managers/{manager.identity}/',
         cert.path
     )
-    cert_uri = {"@odata.id": canonical_path}
+    if manufacturer in ("lenovo", "bull"):
+        cert_uri = {"@odata.id": canonical_path}
+    else:
+        cert_uri = canonical_path
     certificate_service.replace_certificate(cert_uri, cert_content, CertificateType.PEM)
