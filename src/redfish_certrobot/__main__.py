@@ -20,15 +20,14 @@ import os
 import sys
 import threading
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import openstack
 import sushy
 import urllib3
 
 import redfish_certrobot
-import redfish_certrobot.issue as issue
-import redfish_certrobot.nodes as nodes
+from redfish_certrobot import issue, nodes
 
 _MIN_FIRMWARE_MAJOR_VERSION = {"dell": 5}
 
@@ -48,16 +47,9 @@ def _version_check(manufacturer, root):
 
     major_version, _ = firmware_version.split(".", 1)
     major_version = int(major_version)
-    if major_version < min_version:
-        if manufacturer != "dell":
-            LOG.warning("Skipping due to outdated BMC firmware version %s (<%s)", firmware_version, min_version, manufacturer, model)
-            return False
-        # Dell changed the versioning of their BMCs with iDrac 10 and the versions are now starting with 1 instead of 5 to 9,
-        # this corresponds to model 17G in the redfish manager. So for Dell nodes that are not this model (more likely: generation)
-        # we do the usual skipping and only for model 17G we skip the version check.
-        elif manufacturer == "dell" and model != "17G Monolithic":
-            LOG.warning("Skipping due to outdated BMC firmware version %s (<%s) and manufacturer %s and model %s", firmware_version, min_version, manufacturer, model)
-            return False
+    if major_version < min_version and (manufacturer != "dell" or model != "17G Monolithic"):
+        LOG.warning("Skipping due to outdated BMC firmware version %s (<%s) and manufacturer %s and model %s", firmware_version, min_version, manufacturer, model)
+        return False
 
     return major_version
 
@@ -110,12 +102,12 @@ def _summary(results):
 def main():
     _setup_logging()
 
-    now_utc = datetime.now(timezone.utc)
+    now_utc = datetime.now(UTC)
     max_delta = timedelta(days=30)
     best_before_utc = now_utc + max_delta
 
     # We need this because the lego designate provider needs a config
-    conn = openstack.connect()
+    openstack.connect()
 
     def _dispatch(item):
         address, username, password = item
@@ -147,9 +139,8 @@ def main():
             manufacturer = manufacturer.split()[0].lower()
             manager_name = manager.name
 
-            if manufacturer == "hpe":
-                if manager_name != "RMC Manager":
-                    return issue.install_cert_hpe(address, root, best_before_utc)
+            if manufacturer == "hpe" and manager_name != "RMC Manager":
+                return issue.install_cert_hpe(address, root, best_before_utc)
 
             # Fujitsu iRMC reports manufacturer as FSAS
             if manufacturer == "fsas":
@@ -176,15 +167,10 @@ def main():
                 LOG.error("Dispatch returned None for %s", address)
                 return address, "Dispatch returned None"
             return result
-        except (
-            sushy.exceptions.ConnectionError,
-            sushy.exceptions.HTTPError,
-            urllib3.exceptions.HTTPError,
-            IOError,
-        ) as e:
+        except (OSError, sushy.exceptions.ConnectionError, sushy.exceptions.HTTPError, urllib3.exceptions.HTTPError) as e:
             LOG.error(e)
             return address, type(e).__name__
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             import traceback
 
             LOG.error(traceback.format_exc())

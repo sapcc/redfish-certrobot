@@ -15,11 +15,12 @@
 
 import logging
 import os
-from urllib.parse import urljoin
-import requests
-import tenacity
 from sys import exit as safe_exit
+from urllib.parse import urljoin
+
+import requests
 import sushy
+import tenacity
 
 LOG = logging.getLogger(__name__)
 
@@ -46,7 +47,7 @@ query {
     }
   }
 }
-""" % (REGION)
+""" % (REGION)  # noqa: UP031
 
 def get_bmc_creds_from_env():
     username = os.getenv("BMC_USERNAME")

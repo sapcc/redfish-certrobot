@@ -13,31 +13,28 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from contextlib import contextmanager
-from enum import Enum
 import logging
 import os
 import pathlib
 import re
-import subprocess
-import ssl
-import threading
-import typing
-from dataclasses import dataclass
-from datetime import datetime, UTC
-import tempfile
 import shutil
-from cryptography.hazmat.primitives import serialization
-from cryptography import x509
-from cryptography.hazmat.backends import default_backend
-
+import ssl
+import subprocess
+import tempfile
+import threading
+from contextlib import contextmanager
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from enum import Enum
 
 import sushy
 import tenacity
+from cryptography import x509
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization
 from dateutil import parser
 from sushy.resources.certificateservice.constants import CertificateType
 from sushy.resources.constants import ResetType
-
 
 ACME_SERVER = os.getenv("ACME_SERVER").strip("\"' \t")
 DNS_RESOLVERS = os.getenv("DNS_RESOLVERS").strip("\"' \t")
@@ -160,7 +157,7 @@ def import_ssl_certificate_dell(manager, cert_content):
     return False
 
 
-def cert_valid_until(cert, best_before: datetime, address) -> typing.Union[datetime, None]:
+def cert_valid_until(cert, best_before: datetime, address) -> datetime | None:
     valid_not_after = cert.valid_not_after
     if valid_not_after < best_before:
         LOG.info("Certificate expires soon or is expired")
@@ -199,7 +196,7 @@ class CertError(Enum):
     CONNECTION_FAILURE = 5
 
 
-def active_cert_valid_until(address, best_before_utc: datetime, cert=None) -> typing.Tuple[datetime | None, CertError]:
+def active_cert_valid_until(address, best_before_utc: datetime, cert=None) -> tuple[datetime | None, CertError]:
     if not cert:
         try:
             cert = get_active_cert(address)
@@ -444,9 +441,8 @@ def install_cert_hpe(address, root, best_before):
     except KeyError:
         pass
 
-    with _generate_csr_hpe(manager, address) as csr_path:
-        with _request_cert(csr_path) as cert_path:
-            cert_content = _get_certificate_content(cert_path)
+    with _generate_csr_hpe(manager, address) as csr_path, _request_cert(csr_path) as cert_path:
+        cert_content = _get_certificate_content(cert_path)
 
     if import_ssl_certificate_hpe(manager, cert_content):
         manager.reset_manager(ResetType.GRACEFUL_RESTART)
@@ -469,18 +465,17 @@ def install_cert_fujitsu(address, root, best_before, force_renewal=False):
             LOG.info("Fujitsu certificate valid until %s", valid_until)
             return address, valid_until
 
-    except Exception as error:
+    except Exception as error:  # noqa: BLE001
         LOG.warning("Could not read Fujitsu current certificate: %s", error)
 
     LOG.info("Installing new Fujitsu certificate for %s", address)
 
     replace_result = False
 
-    with _generate_csr_fujitsu(address) as (csr_path, key_path):
-        with _request_cert(csr_path, force=True) as cert_path:
-            verify_cert_key_match(cert_path, key_path)
-            cert_content = _get_certificate_content(cert_path)
-            replace_result = replace_certificate_fujitsu(manager, cert_content, key_path)
+    with _generate_csr_fujitsu(address) as (csr_path, key_path), _request_cert(csr_path, force=True) as cert_path:
+        verify_cert_key_match(cert_path, key_path)
+        cert_content = _get_certificate_content(cert_path)
+        replace_result = replace_certificate_fujitsu(manager, cert_content, key_path)
 
     if replace_result:
         manager.reset_manager(ResetType.GRACEFUL_RESTART)
@@ -542,9 +537,8 @@ def get_new_cert(address, root, manufacturer, best_before, force_renewal=False):
     else:  # Hopefully
         collection = {"@odata.id": cert.path.rsplit("/", 1)[0]}
 
-    with _generate_csr(certificate_service, collection, address, manufacturer) as csr_path:
-        with _request_cert(csr_path) as cert_path:
-            return cert, _get_certificate_content(cert_path)
+    with _generate_csr(certificate_service, collection, address, manufacturer) as csr_path, _request_cert(csr_path) as cert_path:
+        return cert, _get_certificate_content(cert_path)
 
 
 def replace_certificate_dell(major_version, root, cert_content):
